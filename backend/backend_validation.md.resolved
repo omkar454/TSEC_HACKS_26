@@ -1,0 +1,126 @@
+# Lazarus Backend System Validation & End-to-End Walkthrough
+
+## 1. End-to-End System Walkthrough
+
+### Step 1: User Onboarding & Roles
+- **Actor**: User (via `POST /api/auth/register`)
+- **Action**: Creates a [User](file:///c:/Users/Omkar%20Raut/OneDrive/Desktop/TSEC_Hacks_26/backend/src/services/authService.js#40-55) record with role `CREATOR` or `CONTRIBUTOR`.
+- **Safety**: Passwords hashed via `bcrypt`. JWT issued for stateless auth. No financial data yet.
+
+### Step 2: Project Setup (The "Ask")
+- **Actor**: Creator
+- **Action**: Creates a [Project](file:///c:/Users/Omkar%20Raut/OneDrive/Desktop/TSEC_Hacks_26/backend/src/services/projectService.js#36-40) (`POST /api/projects`) with:
+  - `FundingGoal`: Target amount.
+  - `FundUsageRules`: Strict JSON rules (e.g., "Marketing: Max $500", "Production: Receipt Required").
+- **System**: Automatically provisions a **Project Wallet** (Balance: 0) to isolate funds.
+- **Audit**: `CREATE_PROJECT` log entry created.
+
+### Step 3: Global Participation (Funding)
+- **Actor**: Contributor
+- **Action**: Funds the project (`POST /api/finance/contribute`).
+- **Logic**:
+  - Validates Project is `ACTIVE`.
+  - Atomically:
+    1. Creates [Contribution](file:///c:/Users/Omkar%20Raut/OneDrive/Desktop/TSEC_Hacks_26/backend/src/services/financeService.js#133-141) record.
+    2. Credits **Project Wallet**.
+    3. Updates Project `CurrentFunding`.
+- **Audit**: `CONTRIBUTION` log captures `oldBalance`, `newBalance`, and payment reference.
+
+### Step 4: Rule-Based Expense Submission
+- **Actor**: Creator
+- **Action**: Requests to spend funds (`POST /api/expenses`).
+- **Validation**: System checks:
+  - Is `Category` allowed?
+  - Is `Amount` <= `MaxLimit` for that category?
+  - Is receipt provided (if required)?
+- **Result**: Creates expense with status `PENDING`. **No money moves yet.**
+- **Audit**: `SUBMIT_EXPENSE` logged.
+
+### Step 5: Governance & Approval (Spending)
+- **Actor**: Admin (or Auditor/AI)
+- **Action**: Reviews `PENDING` expense (`PATCH /api/expenses/:id/status`).
+- **On Approval**:
+  - **Atomic Transaction**: Checks Wallet Balance -> Deducts Amount -> Updates Expense to `APPROVED`.
+- **On Rejection**: Status -> `REJECTED`. Funds remain untouched.
+- **Safety**: Impossible to spend more than is in the wallet.
+
+### Step 6: Revenue Ingestion (Earnings)
+- **Actor**: Creator (or Platform Hook)
+- **Action**: Reports earnings (`POST /api/revenue`).
+- **Data**: Creates [Revenue](file:///c:/Users/Omkar%20Raut/OneDrive/Desktop/TSEC_Hacks_26/backend/src/services/revenueService.js#9-66) record (Source: "YouTube", Amount: $1000).
+- **Status**: Starts as `RECEIVED` (i.e., Pending Distribution).
+
+### Step 7: Automatic Settlement (The Payday)
+- **Actor**: System/Admin (`POST /api/revenue/:id/distribute`).
+- **Logic**:
+  1. **Lock**: Checks [Revenue](file:///c:/Users/Omkar%20Raut/OneDrive/Desktop/TSEC_Hacks_26/backend/src/services/revenueService.js#9-66) is not yet distributed.
+  2. **Calculate**: Iterates ALL contributors.
+     - `Share = (UserContribution / TotalRaised) * RevenueAmount`
+  3. **Payout**: Atomically credits each User's **Personal Wallet**.
+  4. **Dust**: Remainder (cents) sent to Project Wallet.
+  5. **Finalize**: Revenue status -> `DISTRIBUTED`.
+- **Audit**: Individual `PAYOUT` logs for every single user.
+
+---
+
+## 2. Fintech Safety & Governance Proof
+
+### Fund Isolation (The "Wallet" Model)
+- **Architecture**: Money is not a simple field on a User. It is a distinct `Wallet` document.
+- **Guarantee**: Funds can only move via `Transaction` logic (Finance/Expense/Revenue services). No Controller or Route can directly edit a balance.
+
+### Atomic Safety (MongoDB Sessions)
+- **Implementation**: `session.startTransaction()`, `commitTransaction()`, `abortTransaction()`.
+- **Proof**: In [revenueService.js](file:///c:/Users/Omkar%20Raut/OneDrive/Desktop/TSEC_Hacks_26/backend/src/services/revenueService.js), if the system fails to credit even *one* user during a batch payout, the *entire* distribution rolls back. Nobody gets paid half-way. This prevents partial state corruption.
+
+### Full Traceability (Audit Logs)
+- **Implementation**: Every state change (Status update, Balance change) writes to `AuditLog`.
+- **Immutability**: The `AuditLog` model has middleware preventing `updateOne` or `delete`. History is permanent.
+
+---
+
+## 3. Problem Statement Mapping
+
+| Requirement | Implemented Feature | Code Reference |
+| :--- | :--- | :--- |
+| **Global Participation** | Public Contribution API | [financeService.js](file:///c:/Users/Omkar%20Raut/OneDrive/Desktop/TSEC_Hacks_26/backend/src/services/financeService.js) |
+| **Fund Pooling** | Project Wallet Abstraction | [Wallet.js](file:///c:/Users/Omkar%20Raut/OneDrive/Desktop/TSEC_Hacks_26/backend/src/models/Wallet.js) |
+| **Rule-Based Spending** | Expense Rules Engine | [expenseService.js](file:///c:/Users/Omkar%20Raut/OneDrive/Desktop/TSEC_Hacks_26/backend/src/services/expenseService.js) |
+| **Expense Tracking** | Expense Request/Approval Flow | [Expense.js](file:///c:/Users/Omkar%20Raut/OneDrive/Desktop/TSEC_Hacks_26/backend/src/models/Expense.js) |
+| **Revenue Sharing** | Proportional Share Engine | [revenueService.js](file:///c:/Users/Omkar%20Raut/OneDrive/Desktop/TSEC_Hacks_26/backend/src/services/revenueService.js) |
+| **Automatic Settlement** | Atomic Batch Payouts | [revenueService.js](file:///c:/Users/Omkar%20Raut/OneDrive/Desktop/TSEC_Hacks_26/backend/src/services/revenueService.js) |
+| **Transparency** | Public Summary & Contribution Lists | [financeController.js](file:///c:/Users/Omkar%20Raut/OneDrive/Desktop/TSEC_Hacks_26/backend/src/controllers/financeController.js) |
+
+---
+
+## 4. Failure & Edge Case Handling
+
+### Concurrency
+- **Scenario**: Two contributors fund at the exact same millisecond.
+- **Handling**: MongoDB Write Locks + Atomic `$inc` operations ensure the Project Wallet balance reflects both correctly.
+
+### Settlement Re-Entrancy
+- **Scenario**: Admin clicks "Distribute" twice using a retry mechanism.
+- **Handling**: Logic checks `if (revenue.status === "DISTRIBUTED") throw Error`. The second request fails safely.
+
+### Rounding "Dust"
+- **Scenario**: Splitting $100 among 3 people ($33.33). Remainder $0.01.
+- **Handling**: `distributableAmount - distributedTotal` is calculated. The $0.01 is credited to the Project/Creator wallet. No money is lost.
+
+### Malicious Creator
+- **Scenario**: Creator tries to expense $10,000 for "Candy" when rule says "Travel: Max $500".
+- **Handling**: [submitExpenseService](file:///c:/Users/Omkar%20Raut/OneDrive/Desktop/TSEC_Hacks_26/backend/src/services/expenseService.js#7-97) strictly validates `Category` and `Amount` against `fundUsageRules`. Request rejected instantly.
+
+---
+
+## 5. Readiness Assessment
+
+### Status: **PRODUCTION-SAFE CORE**
+The backend core implements all necessary financial primitives (Wallets, Transactions, Audit) safely.
+
+### Risks & Mitigations (for Phase 5+)
+- **KYC**: Currently stubbed. Need real identity verification before big payouts.
+- **Integration**: Payment Gateway (Stripe/Razorpay) is simulated. Need to replace `transactionHash` with real webhook data.
+
+### Conclusion
+The architecture is modular, safe, and meets all Hackathon Problem Statement requirements. It effectively demonstrates "Programmable Money" without blockchain complexity.

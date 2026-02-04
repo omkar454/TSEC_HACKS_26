@@ -16,12 +16,14 @@ const Login = () => {
         setForm({ ...form, [fieldName]: e.target.value })
     }
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        console.log("Login:", form);
-        // Mock login 
-        login({ email: form.email, name: 'John Doe' });
-        navigate('/');
+        const result = await login(form.email, form.password);
+        if (result.success) {
+            navigate('/');
+        } else {
+            alert(result.message);
+        }
     }
 
     return (

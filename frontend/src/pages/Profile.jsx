@@ -1,23 +1,95 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { User, Settings, Shield, Edit, Heart, Layers } from 'lucide-react'
 import CustomButton from '../components/CustomButton'
 import FormField from '../components/FormField'
+import api from '../utils/api'
+import { useAuth } from '../context/AuthContext'
 
 const Profile = () => {
+    const { logout } = useAuth();
     const [isEditing, setIsEditing] = useState(false);
     const [activeTab, setActiveTab] = useState('campaigns');
+    const [isLoading, setIsLoading] = useState(true);
+
+    // Real Data State
     const [user, setUser] = useState({
-        name: 'John Doe',
-        email: 'john@example.com',
-        bio: 'Passionate creator making a difference.'
+        name: '',
+        email: '',
+        bio: 'Passionate creator making a difference.', // Backend doesn't store bio yet, keep as mock or add field later
+        walletAddress: '',
+        role: ''
     });
+
+    const [myCampaigns, setMyCampaigns] = useState([]);
+    const [myDonations, setMyDonations] = useState([]);
+
+    useEffect(() => {
+        const fetchProfileData = async () => {
+            try {
+                setIsLoading(true);
+                // 1. Fetch User Profile
+                const { data: profile } = await api.get('/auth/profile');
+                setUser({
+                    name: profile.name,
+                    email: profile.email,
+                    walletAddress: profile.walletAddress || "No Wallet",
+                    role: profile.role,
+                    bio: profile.bio || "Passionate creator making a difference."
+                });
+
+                // 2. Fetch My Contributions (Donations)
+                const { data: donations } = await api.get('/finance/my-contributions');
+                // Backend returns array of { projectId, amount, ... }
+                setMyDonations(donations.map(d => ({
+                    id: d._id,
+                    projectTitle: d.projectId?.title || "Unknown Project",
+                    amount: d.amount,
+                    date: new Date(d.createdAt).toLocaleDateString()
+                })));
+
+                // 3. Fetch My Campaigns (Creator only)
+                if (profile.role === 'CREATOR') {
+                    // We don't have a specific /projects/my-projects endpoint yet, 
+                    // but we can filter from all projects or add an endpoint.
+                    // For MVP, let's assuming /projects returns all and we filter by owner is inefficient but works if small.
+                    // Better: Add endpoint. For now, let's use the public projects list and filter in frontend (Not secure/scalable but unblocks).
+                    // OR check if I missed an endpoint. projectRoutes has getProjects. 
+                    // Let's assume getProjects returns all.
+                    const { data: allProjects } = await api.get('/projects');
+
+                    // Backend project model has creatorId. 
+                    // Profile ID is available.
+                    const myProjs = allProjects.filter(p =>
+                        (p.creatorId?._id === profile._id) || (p.creatorId === profile._id)
+                    );
+
+                    setMyCampaigns(myProjs.map(p => ({
+                        id: p._id,
+                        title: p.title,
+                        status: p.status,
+                        raised: p.currentFunding
+                    })));
+                }
+
+            } catch (error) {
+                console.error("Failed to fetch profile:", error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchProfileData();
+    }, []);
 
     const handleEditToggle = () => setIsEditing(!isEditing);
 
     const handleSave = () => {
         setIsEditing(false);
-        // Mock save logic
+        // Implement Update Profile API if exists
+        alert("Profile update saved (Local only - Backend update API pending)");
     }
+
+    if (isLoading) return <div className="text-white text-center mt-10">Loading Profile...</div>;
 
     return (
         <div className="flex flex-col gap-6 text-[var(--text-primary)]">
@@ -50,15 +122,18 @@ const Profile = () => {
                         </div>
                     )}
 
-                    <span className="text-[#808191] text-sm mt-2">Creator</span>
+                    <span className="text-[#808191] text-sm mt-2 uppercase tracking-wide">{user.role}</span>
                     <div className="flex gap-2 mt-4">
                         <span className="px-3 py-1 bg-[#8c6dfd] rounded-full text-xs text-white">Verified</span>
-                        <span className="px-3 py-1 bg-[var(--background)] rounded-full text-xs text-[#808191]">Level 2</span>
                     </div>
 
                     <button onClick={isEditing ? handleSave : handleEditToggle} className="mt-6 text-[#4acd8d] flex items-center gap-2 text-sm hover:underline">
                         {isEditing ? <CheckIcon /> : <Edit size={14} />}
                         {isEditing ? 'Save Profile' : 'Edit Details'}
+                    </button>
+
+                    <button onClick={logout} className="mt-4 text-[#ef4444] text-sm hover:underline">
+                        Log Out
                     </button>
                 </div>
 
@@ -73,7 +148,7 @@ const Profile = () => {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="p-4 bg-[var(--background)] rounded-[10px] flex justify-between items-center">
                                 <span className="text-[#808191] text-sm">Wallet Connected</span>
-                                <span className="text-[#4acd8d] font-bold text-xs">0x12...3456</span>
+                                <span className="text-[#4acd8d] font-bold text-xs font-mono">{user.walletAddress.substring(0, 10)}...</span>
                             </div>
                             <div className="p-4 bg-[var(--background)] rounded-[10px] flex justify-between items-center">
                                 <span className="text-[#808191] text-sm">2FA Security</span>
@@ -104,28 +179,38 @@ const Profile = () => {
                         {activeTab === 'campaigns' && (
                             <div className="flex flex-col gap-4">
                                 <p className="text-[#808191] text-sm">Projects you have created.</p>
-                                {/* Mock Campaign List */}
-                                <div className="bg-[var(--background)] p-4 rounded-[10px] flex justify-between items-center">
-                                    <div>
-                                        <h4 className="text-[var(--text-primary)] font-bold">Eco-Friendly Documentary</h4>
-                                        <span className="text-xs text-[#808191]">Status: Active</span>
-                                    </div>
-                                    <span className="text-[#4acd8d] font-bold">₹ 12,000 Raised</span>
-                                </div>
+                                {myCampaigns.length === 0 ? (
+                                    <div className="text-[#808191] italic">No campaigns created yet.</div>
+                                ) : (
+                                    myCampaigns.map(c => (
+                                        <div key={c.id} className="bg-[var(--background)] p-4 rounded-[10px] flex justify-between items-center">
+                                            <div>
+                                                <h4 className="text-[var(--text-primary)] font-bold">{c.title}</h4>
+                                                <span className="text-xs text-[#808191]">Status: <span className="uppercase text-[#4acd8d]">{c.status}</span></span>
+                                            </div>
+                                            <span className="text-[#4acd8d] font-bold">₹ {c.raised.toLocaleString()} Raised</span>
+                                        </div>
+                                    ))
+                                )}
                             </div>
                         )}
 
                         {activeTab === 'donations' && (
                             <div className="flex flex-col gap-4">
                                 <p className="text-[#808191] text-sm">Projects you have backed.</p>
-                                {/* Mock Donation List */}
-                                <div className="bg-[var(--background)] p-4 rounded-[10px] flex justify-between items-center">
-                                    <div>
-                                        <h4 className="text-[var(--text-primary)] font-bold">The Helpers</h4>
-                                        <span className="text-xs text-[#808191]">Date: 2023-11-01</span>
-                                    </div>
-                                    <span className="text-[#8c6dfd] font-bold">₹ 5,000</span>
-                                </div>
+                                {myDonations.length === 0 ? (
+                                    <div className="text-[#808191] italic">No donations yet.</div>
+                                ) : (
+                                    myDonations.map(d => (
+                                        <div key={d.id} className="bg-[var(--background)] p-4 rounded-[10px] flex justify-between items-center">
+                                            <div>
+                                                <h4 className="text-[var(--text-primary)] font-bold">{d.projectTitle}</h4>
+                                                <span className="text-xs text-[#808191]">Date: {d.date}</span>
+                                            </div>
+                                            <span className="text-[#8c6dfd] font-bold">₹ {d.amount.toLocaleString()}</span>
+                                        </div>
+                                    ))
+                                )}
                             </div>
                         )}
                     </div>

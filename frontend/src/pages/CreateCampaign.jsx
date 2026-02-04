@@ -4,6 +4,7 @@ import { Loader, Rocket, DollarSign, Image as ImageIcon, Type } from 'lucide-rea
 
 import CustomButton from '../components/CustomButton';
 import FormField from '../components/FormField';
+import api from '../utils/api';
 
 const CreateCampaign = () => {
     const navigate = useNavigate();
@@ -22,14 +23,38 @@ const CreateCampaign = () => {
         setForm({ ...form, [fieldName]: e.target.value })
     }
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         setIsLoading(true);
         console.log("Form Data Submitted:", form);
-        setTimeout(() => {
+
+        try {
+            // Transform to backend expected format
+            const projectData = {
+                title: form.title,
+                description: form.description,
+                fundingGoal: parseFloat(form.target),
+                category: form.category,
+                // If deadline is provided use it, otherwise set default 30 days
+                deadline: form.deadline ? new Date(form.deadline) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+                imageUrl: form.image,
+                // Rules: Initial simplified set
+                fundUsageRules: [
+                    { category: 'Production', maxAmount: parseFloat(form.target) * 0.5, requiresReceipt: true },
+                    { category: 'Marketing', maxAmount: parseFloat(form.target) * 0.3, requiresReceipt: false },
+                    { category: 'Ops', maxAmount: parseFloat(form.target) * 0.2, requiresReceipt: true }
+                ]
+            };
+
+            const { data } = await api.post('/projects', projectData);
+            alert("Project Created Successfully!");
+            navigate(`/campaign-details/${data._id}`); // Use backend ID
+        } catch (error) {
+            console.error("Project Creation Failed:", error);
+            alert("Failed to create project: " + (error.response?.data?.message || error.message));
+        } finally {
             setIsLoading(false);
-            navigate('/');
-        }, 2000);
+        }
     }
 
     return (

@@ -42,3 +42,12 @@ export const updateProjectStatus = asyncHandler(async (req, res) => {
     );
     res.json(project);
 });
+
+// @desc    Delete project (Reject)
+// @route   DELETE /api/projects/:id
+// @access  Admin / Creator
+export const deleteProject = asyncHandler(async (req, res) => {
+    console.log("DELETE REQUEST RECEIVED FOR ID:", req.params.id);
+    await projectService.deleteProjectService(req.user, req.params.id);
+    res.json({ message: "Project removed" });
+});

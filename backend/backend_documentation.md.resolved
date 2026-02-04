@@ -1,0 +1,153 @@
+# Backend Documentation - Lazarus Platform
+
+This document provides a comprehensive "start-to-finish" overview of the **Lazarus Backend**, a robust REST API application built with Node.js, Express, and MongoDB. It serves as the core logic engine for the Lazarus Fintech Crowdfunding Platform.
+
+## 1. Project Overview
+
+The backend acts as the centralized source of truth for all users, projects, and financial transactions. It implements complex fintech logic including wallet management, revenue sharing, and role-based governance.
+
+*   **Runtime**: [Node.js](https://nodejs.org/)
+*   **Framework**: [Express.js](https://expressjs.com/)
+*   **Database**: [MongoDB](https://www.mongodb.com/) (with Mongoose ODM)
+*   **Authentication**: JWT (JSON Web Tokens)
+*   **Logging**: Winston + Morgan
+
+---
+
+## 2. Folder Structure
+
+The project follows a standard **MVC (Model-View-Controller)** pattern, enhanced with a **Service Layer** for complex business logic.
+
+```
+backend/
+├── src/
+│   ├── config/             # Configuration (DB, Environment)
+│   │   ├── db.js           # Mongoose connection logic
+│   │   └── env.js          # Centralized env vars
+│   ├── controllers/        # Request Handlers
+│   │   ├── authController.js     # Login/Register
+│   │   ├── projectController.js  # Campaign CRUD
+│   │   ├── financeController.js  # Contributions/Wallet
+│   │   ├── expenseController.js  # Expense Submission/Approval
+│   │   ├── revenueController.js  # Revenue Ingestion/Distribution
+│   │   └── adminController.js    # Governance/Freezing
+│   ├── middleware/         # Express Middleware
+│   │   ├── authMiddleware.js     # JWT Verification & RBAC
+│   │   └── errorMiddleware.js    # Global Error Handling
+│   ├── models/             # Mongoose Schemas
+│   │   ├── User.js         # User profiles & roles
+│   │   ├── Project.js      # Campaign data & state
+│   │   ├── Wallet.js       # Financial ledger
+│   │   ├── Contribution.js # Investment records
+│   │   ├── Expense.js      # Bill/Receipt tracking
+│   │   └── Revenue.js      # Income records
+│   ├── routes/             # API Route Definitions
+│   │   └── [feature]Routes.js
+│   ├── services/           # Business Logic Layer
+│   │   └── [feature]Service.js
+│   ├── utils/              # Helper functions
+│   └── app.js              # Express App setup & middleware
+├── index.js                # Entry Point (Server Start)
+├── package.json            # Dependencies
+└── .env                    # Secrets (Not committed)
+```
+
+---
+
+## 3. Core Architecture
+
+### A. Entry Point ([index.js](file:///c:/Users/Omkar%20Raut/OneDrive/Desktop/TSEC_Hacks_26/backend/index.js) & [src/app.js](file:///c:/Users/Omkar%20Raut/OneDrive/Desktop/TSEC_Hacks_26/backend/src/app.js))
+*   **[index.js](file:///c:/Users/Omkar%20Raut/OneDrive/Desktop/TSEC_Hacks_26/backend/index.js)**: Initializes the server and connects to MongoDB.
+*   **[app.js](file:///c:/Users/Omkar%20Raut/OneDrive/Desktop/TSEC_Hacks_26/backend/src/app.js)**: Configures middleware (CORS, Helmet, JSON parsing) and mounts main route groups (e.g., `/api/auth`, `/api/projects`).
+
+### B. Security & Authentication
+*   **JWT Strategy**: Users receive a generic `token` upon login. This token must be sent in the `Authorization` header (`Bearer <token>`).
+*   **Role-Based Access Control (RBAC)**:
+    *   [protect](file:///c:/Users/Omkar%20Raut/OneDrive/Desktop/TSEC_Hacks_26/backend/src/middleware/authMiddleware.js#5-31) middleware: Verifies valid JWT.
+    *   [admin](file:///c:/Users/Omkar%20Raut/OneDrive/Desktop/TSEC_Hacks_26/backend/src/middleware/authMiddleware.js#32-41) middleware: Ensures `user.role === 'ADMIN'`.
+    *   [creator](file:///c:/Users/Omkar%20Raut/OneDrive/Desktop/TSEC_Hacks_26/backend/src/middleware/authMiddleware.js#42-51) middleware: Ensures `user.role === 'CREATOR'`.
+
+### C. Database Schema
+We use **MongoDB** for its flexibility with document structures, critical for generic "Campaign" data.
+*   **Users**: Stores hashed passwords and Roles (`USER`, `CREATOR`, `ADMIN`).
+*   **Projects**: The central entity. Contains current funding, goal, and status (`ACTIVE`, `FROZEN`, `COMPLETED`).
+*   **Wallets**: A virtual ledger system. Every User and Project has a [Wallet](file:///c:/Users/Omkar%20Raut/OneDrive/Desktop/TSEC_Hacks_26/backend/src/services/adminService.js#7-51) document to track balances off-chain (simulating on-chain logic).
+
+---
+
+## 4. Key Feature Flows
+
+### A. Project Lifecycle
+1.  **Creation**: `POST /projects` creates a project with `status: 'ACTIVE'`.
+2.  **Funding**: `POST /finance/contribute` moves funds from User Wallet -> Project Wallet.
+3.  **Completion**: When `currentFunding >= fundingGoal`, status moves to `FUNDED` (logic can be extended).
+
+### B. Expense Management (Governance)
+1.  **Submission**: Creator submits an expense (`POST /expenses`). Status: `PENDING`.
+2.  **Approval**: Admin reviews and approves (`PATCH /expenses/:id/status`).
+3.  **Settlement**: Upon approval, funds move Project Wallet -> Creator Personal Wallet (reimbursement).
+
+### C. Revenue Sharing
+1.  **Ingestion**: Creator reports external revenue (`POST /revenue`). Funds added to Project Revenue Pool.
+2.  **Distribution**: `POST /revenue/:id/distribute` calculates shares based on contribution % and distributes funds to all Backers' wallets.
+
+### D. Admin Governance
+*   **Freezing**: Admins can `PATCH /projects/:id/freeze` to lock all financial movement for a suspicious project.
+*   **Risk Audits**: Automated logic scans for high-velocity withdrawals or frequent large expenses.
+
+---
+
+## 5. API Reference (Key Endpoints)
+
+| Method | Endpoint | Description | Interaction |
+| :--- | :--- | :--- | :--- |
+| **POST** | `/api/auth/register` | Create generic user account. | Public |
+| **POST** | `/api/auth/login` | Authenticate & receive JWT. | Public |
+| **GET** | `/api/projects` | List all campaigns. | Public |
+| **POST** | `/api/projects` | Create new campaign. | Creator |
+| **POST** | `/api/finance/contribute` | Invest in a project. | User |
+| **POST** | `/api/expenses` | Submit new expense bill. | Creator |
+| **PATCH** | `/api/expenses/:id/status` | Approve/Reject expense. | **Admin** |
+| **POST** | `/api/revenue` | Ingest project revenue. | Creator |
+| **PATCH** | `/api/admin/projects/:id/freeze` | Emergency freeze. | **Admin** |
+
+---
+
+## 6. How to Run & Develop
+
+### Prerequisites
+*   Node.js (v16+)
+*   MongoDB Instance (Local or Atlas)
+
+### Setup Steps
+1.  **Install Dependencies**:
+    ```bash
+    cd backend
+    npm install
+    ```
+2.  **Environment Setup**:
+    Create a [.env](file:///c:/Users/Omkar%20Raut/OneDrive/Desktop/TSEC_Hacks_26/backend/.env) file in root:
+    ```
+    PORT=3000
+    MONGO_URI=mongodb://localhost:27017/lazarus
+    JWT_SECRET=your_super_secret_key
+    NODE_ENV=development
+    ```
+3.  **Start Server**:
+    ```bash
+    npm run dev
+    ```
+    Server runs at `http://localhost:3000`.
+
+### Error Handling
+The backend uses a global error handler. All responses follow a standard format:
+```json
+{
+  "message": "Error description",
+  "stack": "Stack trace (dev only)"
+}
+```
+
+---
+
+This documentation reflects the fully implemented Phase 4 backend system.

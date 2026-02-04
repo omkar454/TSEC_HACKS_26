@@ -4,6 +4,7 @@ import {
     getProjects,
     getProjectById,
     updateProjectStatus,
+    deleteProject,
 } from "../controllers/projectController.js";
 import { protect, creator } from "../middleware/authMiddleware.js";
 
@@ -14,7 +15,8 @@ router.route("/")
     .post(protect, creator, createProject);
 
 router.route("/:id")
-    .get(getProjectById);
+    .get(getProjectById)
+    .delete(protect, deleteProject);
 
 router.route("/:id/status")
     .patch(protect, updateProjectStatus);

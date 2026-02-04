@@ -1,0 +1,168 @@
+# Frontend Documentation - Lazarus Platform
+
+This document provides a comprehensive "start-to-finish" overview of the **Lazarus Frontend**, a modern Fintech Crowdfunding Dashboard built with React, Vite, and Tailwind CSS.
+
+## 1. Project Overview
+
+The frontend is a **Single Page Application (SPA)** designed to interact with the Lazarus Backend API. It features a responsive, dark-mode-first "Glassmorphism" UI, real-time data fetching, and role-based access control (RBAC).
+
+*   **Framework**: [React 19](https://react.dev/)
+*   **Build Tool**: [Vite](https://vitejs.dev/)
+*   **Styling**: [Tailwind CSS v4](https://tailwindcss.com/) + Custom CSS Variables
+*   **Routing**: [React Router v7](https://reactrouter.com/)
+*   **Icons**: [Lucide React](https://lucide.dev/)
+*   **HTTP Client**: [Axios](https://axios-http.com/)
+
+---
+
+## 2. Folder Structure
+
+The project follows a feature-based structure within `src/`.
+
+```
+frontend/
+├── public/                 # Static assets (favicons, etc.)
+├── src/
+│   ├── assets/             # Images and global static files
+│   ├── components/         # Reusable UI components
+│   │   ├── Sidebar.jsx     # Main navigation
+│   │   ├── Navbar.jsx      # Top bar & Search
+│   │   ├── CustomButton.jsx # Styled button component
+│   │   ├── FormField.jsx   # Input wrapper
+│   │   ├── CountBox.jsx    # Stat display card
+│   │   └── DisplayCampaigns.jsx # Grid view for projects
+│   ├── constants/          # Static data & config (nav links)
+│   ├── context/            # Global State (React Context)
+│   │   ├── AuthContext.jsx # User login/signup/logout logic
+│   │   └── ThemeContext.jsx # Dark/Light mode toggle
+│   ├── pages/              # Main Route Views
+│   │   ├── Home.jsx        # Landing page (All campaigns)
+│   │   ├── CreateCampaign.jsx # Project submission form
+│   │   ├── CampaignDetails.jsx # Single project view + Governance
+│   │   ├── Profile.jsx     # User bio & history
+│   │   ├── CreatorDashboard.jsx # Creator tools (Revenue/Expenses)
+│   │   ├── AdminDashboard.jsx # Admin tools (Freeze/Risk)
+│   │   ├── Login.jsx       # Auth page
+│   │   └── Signup.jsx      # Auth page
+│   ├── utils/              # Utilities
+│   │   └── api.js          # Centralized Axios instance
+│   ├── App.jsx             # Main Router & Layout definition
+│   ├── main.jsx            # Entry point (Providers wrapper)
+│   └── index.css           # Global styles & Tailwind directives
+├── .env                    # Environment variables
+├── package.json            # Dependencies & Scripts
+└── vite.config.js          # Vite configuration
+```
+
+---
+
+## 3. Core Architecture & Configuration
+
+### A. Entry Point ([main.jsx](file:///c:/Users/Omkar%20Raut/OneDrive/Desktop/TSEC_Hacks_26/frontend/src/main.jsx))
+The application is wrapped in multiple Context Providers to ensure global access to Authentication and Theme state.
+```jsx
+<Router>
+  <AuthProvider>    {/* Handles User Session */}
+    <ThemeProvider> {/* Handles UI Theme */}
+      <App />
+    </ThemeProvider>
+  </AuthProvider>
+</Router>
+```
+
+### B. Styling System ([index.css](file:///c:/Users/Omkar%20Raut/OneDrive/Desktop/TSEC_Hacks_26/frontend/src/index.css))
+We effectively use **CSS Variables** for theming, allowing instant toggling between Dark (default) and Light mdoes.
+*   **Variables**: defined in `:root` (e.g., `--background`, `--primary`).
+*   **Tailwind Integration**: The new Tailwind v4 `@theme` directive maps these variables to utility classes.
+*   **Custom Utilities**:
+    *   `.glass-panel`: Applies backdrop-blur and semi-transparent gradients.
+    *   `.glass-input`: Styled form inputs matching the theme of the Dashboard.
+
+### C. API Integration ([src/utils/api.js](file:///c:/Users/Omkar%20Raut/OneDrive/Desktop/TSEC_Hacks_26/frontend/src/utils/api.js))
+Instead of using [fetch](file:///c:/Users/Omkar%20Raut/OneDrive/Desktop/TSEC_Hacks_26/frontend/src/pages/AdminDashboard.jsx#16-41) or raw `axios` calls in components, we use a centralized instance.
+*   **Base URL**: Loaded from `VITE_API_BASE_URL` (e.g., `http://localhost:3000/api`).
+*   **Interceptors**: Automatically attaches the JWT `Authorization` header to *every* request if a user is logged in.
+
+---
+
+## 4. Key Features & Components
+
+### A. Authentication
+*   **Sign Up/Login**: Users authenticate using Email/Password.
+*   **JWT Storage**: Tokens are stored in `localStorage` and managed via `AuthContext`.
+*   **Role Setup**: Users have roles (`USER` or `ADMIN`). The UI adapts based on this role (e.g., Admin Dashboard link appears only for Admins).
+
+### B. Project Management
+*   **Create Campaign**: A form [CreateCampaign.jsx](file:///c:/Users/Omkar%20Raut/OneDrive/Desktop/TSEC_Hacks_26/frontend/src/pages/CreateCampaign.jsx) sends data to `POST /projects`. It validates required fields like "Funding Goal" and "Description".
+*   **View Campaigns**: [Home.jsx](file:///c:/Users/Omkar%20Raut/OneDrive/Desktop/TSEC_Hacks_26/frontend/src/pages/Home.jsx) fetches all projects (`GET /projects`).
+*   **Project Details**: [CampaignDetails.jsx](file:///c:/Users/Omkar%20Raut/OneDrive/Desktop/TSEC_Hacks_26/frontend/src/pages/CampaignDetails.jsx) is the heart of the user experience.
+    *   Displays progress bars for funding.
+    *   Shows "Days Left" and "Backers".
+    *   **Tabs**: Governance (Revenue/Expenses), Story, Transparency.
+
+### C. Financial & Governance Engine
+This is the unique "Fintech" aspect of the platform.
+
+1.  **Funding**: Users contribute funds via `POST /finance/contribute` in [CampaignDetails](file:///c:/Users/Omkar%20Raut/OneDrive/Desktop/TSEC_Hacks_26/frontend/src/pages/CampaignDetails.jsx#11-379).
+2.  **Expense Requests**:
+    *   Creators upload bills via [CreatorDashboard](file:///c:/Users/Omkar%20Raut/OneDrive/Desktop/TSEC_Hacks_26/frontend/src/pages/CreatorDashboard.jsx#7-225) (`POST /expenses`).
+    *   These appear as "Pending" in [CampaignDetails](file:///c:/Users/Omkar%20Raut/OneDrive/Desktop/TSEC_Hacks_26/frontend/src/pages/CampaignDetails.jsx#11-379).
+3.  **Governance Voting**:
+    *   **Admins** (representing the Governance Council) can Approve/Reject expenses directly in [CampaignDetails](file:///c:/Users/Omkar%20Raut/OneDrive/Desktop/TSEC_Hacks_26/frontend/src/pages/CampaignDetails.jsx#11-379).
+    *   *Design Note*: Real-time calling of `PATCH /expenses/:id/status` releases funds instantly.
+4.  **Revenue Sharing**:
+    *   Creators ingest external revenue (e.g., from Ads) in [CreatorDashboard](file:///c:/Users/Omkar%20Raut/OneDrive/Desktop/TSEC_Hacks_26/frontend/src/pages/CreatorDashboard.jsx#7-225).
+    *   They can trigger "Global Distribution" to pay back all token holders proportionally.
+
+### D. Admin Dashboard ([AdminDashboard.jsx](file:///c:/Users/Omkar%20Raut/OneDrive/Desktop/TSEC_Hacks_26/frontend/src/pages/AdminDashboard.jsx))
+A protected route `/admin` accessible only to `ADMIN` users.
+*   **Risk Reports**: Fetches AI-generated risk flags from the backend.
+*   **Wallet Freezing**: Allows admins to freeze a project's funds if suspicious activity is detected.
+
+---
+
+## 5. How to Run & Develop
+
+### Prerequisites
+*   Node.js (v16+)
+*   Backend running on port 3000 (default)
+
+### Setup Steps
+1.  **Install Dependencies**:
+    ```bash
+    cd frontend
+    npm install
+    ```
+2.  **Environment Setup**:
+    Ensure [.env](file:///c:/Users/Omkar%20Raut/OneDrive/Desktop/TSEC_Hacks_26/backend/.env) exists:
+    ```
+    VITE_API_BASE_URL=http://localhost:3000/api
+    ```
+3.  **Start Development Server**:
+    ```bash
+    npm run dev
+    ```
+    Access the app at `http://localhost:5173`.
+
+### Common Issues
+*   **CORS Error**: Ensure backend [app.js](file:///c:/Users/Omkar%20Raut/OneDrive/Desktop/TSEC_Hacks_26/backend/src/app.js) has `cors` configured for `localhost:5173`.
+*   **Login Fails**: Check backend console for MongoDB connection issues.
+
+---
+
+## 6. Route Map
+
+| Path | Component | Description | Protected? |
+| :--- | :--- | :--- | :--- |
+| `/` | [Home](file:///c:/Users/Omkar%20Raut/OneDrive/Desktop/TSEC_Hacks_26/frontend/src/pages/Home.jsx#6-61) | Landing page, list of campaigns. | No |
+| `/login` | [Login](file:///c:/Users/Omkar%20Raut/OneDrive/Desktop/TSEC_Hacks_26/frontend/src/pages/Login.jsx#7-65) | User authentication. | No |
+| `/signup` | [Signup](file:///c:/Users/Omkar%20Raut/OneDrive/Desktop/TSEC_Hacks_26/frontend/src/pages/Signup.jsx#7-73) | User registration. | No |
+| `/create-campaign` | [CreateCampaign](file:///c:/Users/Omkar%20Raut/OneDrive/Desktop/TSEC_Hacks_26/frontend/src/pages/CreateCampaign.jsx#9-229) | Form to start a project. | **Yes** |
+| `/campaign-details/:id` | [CampaignDetails](file:///c:/Users/Omkar%20Raut/OneDrive/Desktop/TSEC_Hacks_26/frontend/src/pages/CampaignDetails.jsx#11-379) | Contributions & Governance. | No |
+| `/dashboard` | [CreatorDashboard](file:///c:/Users/Omkar%20Raut/OneDrive/Desktop/TSEC_Hacks_26/frontend/src/pages/CreatorDashboard.jsx#7-225) | Creator tools (Expenses/Revenue). | **Yes** |
+| `/profile` | [Profile](file:///c:/Users/Omkar%20Raut/OneDrive/Desktop/TSEC_Hacks_26/frontend/src/pages/Profile.jsx#8-222) | User history & bio. | **Yes** |
+| `/admin` | [AdminDashboard](file:///c:/Users/Omkar%20Raut/OneDrive/Desktop/TSEC_Hacks_26/frontend/src/pages/AdminDashboard.jsx#6-139) | Governance oversight. | **Yes (Admin)** |
+
+---
+
+This documentation covers the current state of the implementation (Phase 3 Complete).

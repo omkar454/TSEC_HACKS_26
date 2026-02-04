@@ -1,80 +1,114 @@
 import React, { useState, useEffect } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Loader, Folder, User, ShieldCheck, PieChart, Lock, Info } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
+// import { useAuth } from '../context/AuthContext'
 
 import CustomButton from '../components/CustomButton'
 import { CAMPAIGN_STATES, EXPENSE_STATES } from '../constants'
+import api from '../utils/api'
 
 const CampaignDetails = () => {
+    const { user } = useAuth(); // Get user for role check
     const { id } = useParams();
     const navigate = useNavigate();
     const { state } = useLocation();
     const [isLoading, setIsLoading] = useState(false);
     const [amount, setAmount] = useState('');
     const [activeTab, setActiveTab] = useState('governance');
+
+    // State for real data
+    const [campaign, setCampaign] = useState(null);
+    const [expenses, setExpenses] = useState([]);
     const [userOwnership, setUserOwnership] = useState(0);
 
-    // Enhanced Mock Data or State Data
-    const [campaign, setCampaign] = useState(state || {
-        title: "Eco-Friendly Documentary",
-        description: "A deep dive into climate change solutions...",
-        target: 50000,
-        raised: 12000,
-        deadline: "30",
-        image: "https://images.unsplash.com/photo-1542831371-29b0f74f9713?ixlib=rb-4.0.3",
-        owner: "0x123...456",
-        category: "Education",
-        state: CAMPAIGN_STATES.VOTING_ACTIVE,
-        fundsLocked: 12000,
-        userContribution: 0
-    });
-
-    const [expenses, setExpenses] = useState([
-        { id: 1, title: 'Camera Rental', amount: 25000, status: EXPENSE_STATES.VOTING_OPEN, approvalWeight: 45, rejectedWeight: 10, receipt: 'invoice_001.pdf' },
-        { id: 2, title: 'Travel Logistics', amount: 10000, status: EXPENSE_STATES.APPROVED, approvalWeight: 75, rejectedWeight: 5, receipt: 'invoice_002.pdf' },
-    ]);
-
-    // Update Ownership % when campaign data changes
+    // Fetch Data
     useEffect(() => {
-        if (campaign.raised > 0) {
-            const ownership = (campaign.userContribution / campaign.target) * 100; // Using target for pool share or accumulated raised
-            // Simulating ownership based on Total Raised for logical consistency
-            const share = (campaign.userContribution / campaign.raised) * 100;
-            setUserOwnership(share.toFixed(2));
-        }
-    }, [campaign]);
+        const fetchData = async () => {
+            setIsLoading(true);
+            try {
+                // 1. Fetch Project Details
+                const { data: project } = await api.get(`/projects/${id}`);
 
-    const handleFund = () => {
+                // Map Backend Project to UI Model
+                // Map Backend Project to UI Model
+                const mappedProject = {
+                    title: project.title,
+                    description: project.description,
+                    target: project.fundingGoal,
+                    raised: project.currentFunding,
+                    deadline: project.deadline ? new Date(project.deadline).toLocaleDateString() : "Ongoing",
+                    image: project.imageUrl || "https://images.unsplash.com/photo-1542831371-29b0f74f9713",
+                    owner: project.creatorId?.name || "Unknown Creator",
+                    category: project.category,
+                    state: project.status,
+                    fundsLocked: project.currentFunding,
+                    userContribution: 0,
+                    walletId: project.walletId,
+                    _id: project._id
+                };
+                setCampaign(mappedProject);
+
+                // 2. Fetch Expenses
+                const { data: expenseList } = await api.get(`/expenses/project/${id}`);
+                setExpenses(expenseList.map(e => ({
+                    id: e._id,
+                    title: e.title,
+                    amount: e.amount,
+                    status: e.status, // "PENDING", "APPROVED", "REJECTED"
+                    receipt: e.receiptUrl || "No Receipt"
+                })));
+
+            } catch (error) {
+                console.error("Error fetching campaign details:", error);
+                // navigate('/'); // Optional: redirect on error
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        if (id) fetchData();
+    }, [id]);
+
+    const handleFund = async () => {
         if (!amount) return;
         setIsLoading(true);
-        setTimeout(() => {
-            setIsLoading(false);
-            const newRaised = parseFloat(campaign.raised) + parseFloat(amount);
-            const newContribution = parseFloat(campaign.userContribution) + parseFloat(amount);
+        try {
+            await api.post('/finance/contribute', {
+                projectId: id,
+                amount: parseFloat(amount)
+            });
 
-            setCampaign(prev => ({
-                ...prev,
-                raised: newRaised,
-                userContribution: newContribution,
-                fundsLocked: parseFloat(prev.fundsLocked) + parseFloat(amount)
-            }));
-
+            alert(`Successfully invested ₹${amount}.`);
             setAmount('');
-            alert(`Successfully invested ₹${amount}. You now own more of this project!`);
-        }, 1500);
+            // Refresh data
+            window.location.reload();
+        } catch (error) {
+            console.error("Funding failed:", error);
+            alert("Funding failed: " + (error.response?.data?.message || error.message));
+        } finally {
+            setIsLoading(false);
+        }
     }
 
-    const handleVote = (id, type) => {
-        setExpenses(prev => prev.map(exp => {
-            if (exp.id === id) {
-                // Mocking vote weight addition
-                const weightToAdd = parseFloat(userOwnership);
-                if (type === 'approve') return { ...exp, approvalWeight: exp.approvalWeight + weightToAdd };
-                if (type === 'reject') return { ...exp, rejectedWeight: exp.rejectedWeight + weightToAdd };
-            }
-            return exp;
-        }));
+    // Admin Governance Handler
+    const handleVote = async (expenseId, decision) => {
+        // decision: 'approved' or 'rejected' (Backend expects status uppercase: APPROVED/REJECTED)
+        const status = decision === 'approve' ? 'APPROVED' : 'REJECTED';
+
+        if (!window.confirm(`Are you sure you want to ${status} this expense? Money will move.`)) return;
+
+        try {
+            await api.patch(`/expenses/${expenseId}/status`, { status });
+            alert(`Expense ${status}!`);
+            // Refresh local state specific item
+            setExpenses(prev => prev.map(e => e.id === expenseId ? { ...e, status } : e));
+        } catch (error) {
+            alert("Governance Action Failed: " + error.response?.data?.message);
+        }
     };
+
+    if (!campaign) return <div className="text-white text-center mt-10">Loading...</div>;
 
     return (
         <div className="flex flex-col gap-8 text-[var(--text-primary)]">
@@ -231,22 +265,27 @@ const CampaignDetails = () => {
                                                 </div>
                                             </div>
 
-                                            {/* Actions (Only if Voting Open) */}
-                                            {expense.status === EXPENSE_STATES.VOTING_OPEN && parseFloat(userOwnership) > 0 && (
+                                            {/* Actions (Admin Only for MVP) */}
+                                            {expense.status === 'PENDING' && (user?.role === 'ADMIN') && (
                                                 <div className="flex gap-4 mt-4">
                                                     <button
                                                         onClick={() => handleVote(expense.id, 'approve')}
                                                         className="flex-1 py-2 bg-[#4acd8d]/10 text-[#4acd8d] border border-[#4acd8d] rounded hover:bg-[#4acd8d] hover:text-white transition-all font-semibold text-sm"
                                                     >
-                                                        Approve
+                                                        Approve Request
                                                     </button>
                                                     <button
                                                         onClick={() => handleVote(expense.id, 'reject')}
                                                         className="flex-1 py-2 bg-[#ef4444]/10 text-[#ef4444] border border-[#ef4444] rounded hover:bg-[#ef4444] hover:text-white transition-all font-semibold text-sm"
                                                     >
-                                                        Reject
+                                                        Reject Request
                                                     </button>
                                                 </div>
+                                            )}
+
+                                            {/* Contributor Message */}
+                                            {expense.status === 'PENDING' && user?.role !== 'ADMIN' && (
+                                                <p className="text-xs text-[#808191] mt-2 italic">Waiting for Governance Council (Admin) approval.</p>
                                             )}
                                         </div>
                                     ))
@@ -313,24 +352,38 @@ const CampaignDetails = () => {
                             Invest & Govern
                         </p>
                         <div className="mt-[30px]">
-                            <input
-                                type="number"
-                                placeholder="₹ 5000"
-                                step="1000"
-                                className="w-full py-[10px] sm:px-[20px] px-[15px] outline-none border-[1px] border-[#3a3a43] bg-transparent font-epilogue text-[var(--text-primary)] text-[18px] leading-[30px] placeholder:text-[#4b5264] rounded-[10px]"
-                                value={amount}
-                                onChange={(e) => setAmount(e.target.value)}
-                            />
+                            <div className="mt-[30px]">
+                                {user?.role === 'CONTRIBUTOR' ? (
+                                    <>
+                                        <input
+                                            type="number"
+                                            placeholder="₹ 5000"
+                                            step="1000"
+                                            className="w-full py-[10px] sm:px-[20px] px-[15px] outline-none border-[1px] border-[#3a3a43] bg-transparent font-epilogue text-[var(--text-primary)] text-[18px] leading-[30px] placeholder:text-[#4b5264] rounded-[10px]"
+                                            value={amount}
+                                            onChange={(e) => setAmount(e.target.value)}
+                                        />
 
-                            <CustomButton
-                                btnType="button"
-                                title="Fund Project"
-                                styles="w-full bg-[#8c6dfd] mt-4"
-                                handleClick={handleFund}
-                            />
-                            <p className="text-[#808191] text-xs text-center mt-3 leading-relaxed">
-                                ℹ️ Funds are securely locked in the smart contract and can only be spent with contributor approval.
-                            </p>
+                                        <CustomButton
+                                            btnType="button"
+                                            title="Fund Project"
+                                            styles="w-full bg-[#8c6dfd] mt-4"
+                                            handleClick={handleFund}
+                                        />
+                                        <p className="text-[#808191] text-xs text-center mt-3 leading-relaxed">
+                                            ℹ️ Funds are securely locked in the smart contract and can only be spent with contributor approval.
+                                        </p>
+                                    </>
+                                ) : (
+                                    <div className="p-4 bg-[#13131a] rounded-[10px] border border-[#3a3a43] text-center">
+                                        <p className="text-[#808191] text-sm">
+                                            {user?.role === 'CREATOR'
+                                                ? "You are viewing this as a Creator. Switch to a Contributor account to invest."
+                                                : "Only registered Contributors can invest in campaigns."}
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>

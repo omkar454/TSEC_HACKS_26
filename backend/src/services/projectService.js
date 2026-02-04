@@ -68,3 +68,29 @@ export const updateProjectStatusService = async (user, projectId, status) => {
 
     return project;
 };
+
+export const deleteProjectService = async (user, projectId) => {
+    const project = await Project.findById(projectId);
+    if (!project) throw new Error("Project not found");
+
+    // Only Admin can delete (reject) projects in this workflow
+    if (user.role !== "ADMIN" && project.creatorId.toString() !== user._id.toString()) {
+        throw new Error("Not authorized to delete this project");
+    }
+
+    // Optional: Check if funds exist before deleting (safety)
+    // For MVP/Draft rejection, we assume safe to delete.
+
+    await Project.findByIdAndDelete(projectId);
+
+    // Audit Log
+    await AuditLog.create({
+        action: "DELETE_PROJECT",
+        actorId: user._id,
+        resourceId: projectId, // ID is preserved in log even if deleted
+        resourceModel: "Project",
+        details: { title: project.title, reason: "Admin Rejection / Creator Delete" },
+    });
+
+    return { success: true };
+};

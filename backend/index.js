@@ -1,34 +1,13 @@
-import express from "express";
-import mongoose from "mongoose";
-import dotenv from "dotenv";
+import app from "./src/app.js";
+import { connectDB } from "./src/config/db.js";
+import { config } from "./src/config/env.js";
 
-dotenv.config();
+// Connect to Database
+connectDB();
 
-const app = express();
+// Start Server
+const PORT = config.port || 3000;
 
-// Middleware
-app.use(express.json());
-
-// Env variables
-const PORT = process.env.PORT;
-const MONGO_URI = process.env.MONGO_URI;
-
-// MongoDB connection
-mongoose
-  .connect(MONGO_URI)
-  .then(() => {
-    console.log("✅ MongoDB connected");
-  })
-  .catch((err) => {
-    console.error("❌ MongoDB connection error:", err);
-  });
-
-// Test route
-app.get("/", (req, res) => {
-  res.send("Server running 🚀");
-});
-
-// Start server
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
+  console.log(`🚀 Server running in ${config.env} mode on port ${PORT}`);
 });

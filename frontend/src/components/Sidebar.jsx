@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LayoutDashboard, Megaphone, MonitorPlay, Wallet, User, LogOut, Sun, Moon } from 'lucide-react';
+import { LayoutDashboard, Megaphone, MonitorPlay, Wallet, User, LogOut, Sun, Moon, ShieldAlert } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
@@ -16,7 +16,7 @@ const Icon = ({ styles, name, imgUrl, isActive, disabled, handleClick }) => (
 
 const Sidebar = () => {
     const navigate = useNavigate();
-    const { logout } = useAuth();
+    const { user, logout } = useAuth(); // Get user to check role
     const { theme, toggleTheme } = useTheme();
     const [isActive, setIsActive] = useState('dashboard');
 
@@ -31,11 +31,12 @@ const Sidebar = () => {
             imgUrl: Megaphone,
             link: '/create-campaign',
         },
-        {
+        // Creator Only
+        ...(user?.role === 'CREATOR' ? [{
             name: 'payment',
-            imgUrl: MonitorPlay, // Creator Studio / Transparency
+            imgUrl: MonitorPlay,
             link: '/dashboard',
-        },
+        }] : []),
         {
             name: 'withdraw',
             imgUrl: Wallet,
@@ -46,6 +47,12 @@ const Sidebar = () => {
             imgUrl: User,
             link: '/profile',
         },
+        // Admin Only
+        ...(user?.role === 'ADMIN' ? [{
+            name: 'settings',
+            imgUrl: ShieldAlert,
+            link: '/admin',
+        }] : []),
         {
             name: 'logout',
             imgUrl: LogOut,

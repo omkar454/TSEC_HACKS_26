@@ -26,11 +26,11 @@ const Sidebar = () => {
             imgUrl: LayoutDashboard,
             link: '/',
         },
-        {
+        ...(user?.role === 'CREATOR' ? [{
             name: 'campaign',
             imgUrl: Megaphone,
             link: '/create-campaign',
-        },
+        }] : []),
         // Creator Only
         ...(user?.role === 'CREATOR' ? [{
             name: 'payment',

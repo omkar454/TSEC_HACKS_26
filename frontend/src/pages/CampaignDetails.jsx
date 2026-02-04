@@ -85,8 +85,12 @@ const CampaignDetails = () => {
                     creatorId: project.creatorId?._id || project.creatorId,
                     _id: project._id,
                     milestones: project.milestones || [],
-                    tiers: project.tiers || {}
+                    tiers: project.tiers || {},
+                    tiers: project.tiers || {},
+                    creatorStake: Number(project.creatorStake) || 0
                 };
+                console.log("Fetched Project Data:", project);
+                console.log("Mapped Creator Stake:", mappedProject.creatorStake);
                 setCampaign(mappedProject);
 
                 const { data: expenseList } = await api.get(`/expenses/project/${id}`);
@@ -269,9 +273,16 @@ const CampaignDetails = () => {
                 </div>
 
                 <div className="flex md:w-[200px] w-full flex-wrap justify-between gap-[30px]">
-                    <CountBox title="Time Remaining" value={`${timeLeft.days}d ${timeLeft.hours}h ${timeLeft.minutes}m ${timeLeft.seconds}s`} />
+                    <CountBox title="Time Remaining" value={`${timeLeft.days}d ${timeLeft.hours}h`} />
                     <CountBox title={`Raised of ₹${campaign.target.toLocaleString()}`} value={`₹${campaign.raised.toLocaleString()}`} />
-                    <CountBox title="Global Trust" value="100%" />
+                    <div className="flex flex-col items-center w-[150px]">
+                        <h4 className="font-epilogue font-bold text-[30px] text-[var(--text-primary)] p-3 bg-[var(--secondary)] rounded-t-[10px] w-full text-center truncate">
+                            {100 - (Number(campaign.creatorStake) || 0)}%
+                        </h4>
+                        <p className="font-epilogue font-normal text-[16px] text-[var(--text-secondary)] bg-[var(--background)] px-3 py-2 w-full rounded-b-[10px] text-center border-x border-b border-[#3a3a43]">
+                            Investor Pool
+                        </p>
+                    </div>
                 </div>
             </div>
 

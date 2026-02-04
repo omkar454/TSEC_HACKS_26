@@ -3,7 +3,7 @@ import Wallet from "../models/Wallet.js";
 import AuditLog from "../models/AuditLog.js";
 
 export const createProjectService = async (user, projectData) => {
-    const { title, description, category, fundingGoal, deadline, milestones } = projectData;
+    const { title, description, category, fundingGoal, deadline, milestones, creatorStake } = projectData;
 
     if (!deadline) throw new Error("Project must have a deadline.");
 
@@ -13,6 +13,7 @@ export const createProjectService = async (user, projectData) => {
         description,
         category,
         fundingGoal,
+        creatorStake: creatorStake || 0,
         deadline: new Date(deadline),
         milestones: milestones || [], // Initialize milestones if provided
         creatorId: user._id,

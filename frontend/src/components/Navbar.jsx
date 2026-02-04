@@ -50,14 +50,16 @@ const Navbar = () => {
                                 handleClick={() => navigate('/wallet')}
                             />
                         ) : (
-                            <CustomButton
-                                btnType="button"
-                                title="Create A Campaign"
-                                styles="bg-[#8c6dfd]"
-                                handleClick={() => {
-                                    navigate('/create-campaign')
-                                }}
-                            />
+                            user?.role === 'CREATOR' && (
+                                <CustomButton
+                                    btnType="button"
+                                    title="Create A Campaign"
+                                    styles="bg-[#8c6dfd]"
+                                    handleClick={() => {
+                                        navigate('/create-campaign')
+                                    }}
+                                />
+                            )
                         )}
 
                         <div className="relative">

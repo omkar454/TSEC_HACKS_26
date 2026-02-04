@@ -26,6 +26,13 @@ const projectSchema = new mongoose.Schema(
             required: true,
             min: 1,
         },
+        creatorStake: {
+            type: Number,
+            required: true,
+            default: 0,
+            min: 0,
+            max: 100,
+        },
         currentFunding: {
             type: Number,
             default: 0,

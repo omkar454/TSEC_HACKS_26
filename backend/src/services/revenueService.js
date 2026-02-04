@@ -102,11 +102,65 @@ export const distributeRevenueService = async (user, revenueId) => {
         }
 
         const totalFunding = contributions.reduce((sum, c) => sum + c.amount, 0);
-        const distributableAmount = revenue.amount;
-
-        // 2. Distribute Loop
+        let distributableAmount = revenue.amount;
         const payouts = [];
         let distributedTotal = 0;
+
+        // --- 2a. Creator Stake Distribution ---
+        const creatorStakePercent = project.creatorStake || 0;
+        if (creatorStakePercent > 0) {
+            const creatorShare = Math.floor((distributableAmount * creatorStakePercent) / 100 * 100) / 100;
+
+            if (creatorShare > 0) {
+                // Find or Create Creator Wallet
+                let creatorUser = await User.findById(project.creatorId).session(session);
+                if (!creatorUser.walletId) {
+                    const newWallet = await Wallet.create([{
+                        ownerId: creatorUser._id,
+                        ownerModel: "User",
+                        balance: 0
+                    }], { session });
+
+                    creatorUser.walletId = newWallet[0]._id;
+                    await creatorUser.save({ session });
+                }
+
+                const creatorWallet = await Wallet.findById(creatorUser.walletId).session(session);
+                const oldBalance = creatorWallet.balance;
+                creatorWallet.balance += creatorShare;
+                await creatorWallet.save({ session });
+
+                // Track distributed amount so far
+                distributedTotal += creatorShare;
+
+                // Adjust remaining amount for investors
+                distributableAmount -= creatorShare;
+
+                payouts.push({
+                    userId: creatorUser._id,
+                    amount: creatorShare,
+                    walletId: creatorWallet._id,
+                    type: "CREATOR_STAKE"
+                });
+
+                await AuditLog.create([{
+                    action: "PAYOUT",
+                    actorId: user._id,
+                    resourceId: creatorWallet._id,
+                    resourceModel: "Wallet",
+                    details: {
+                        revenueId: revenue._id,
+                        amount: creatorShare,
+                        reason: "CREATOR_STAKE_REVENUE",
+                        stakePercent: creatorStakePercent,
+                        oldBalance,
+                        newBalance: creatorWallet.balance
+                    }
+                }], { session });
+            }
+        }
+
+        // --- 2b. Investor Distribution Loop ---
 
         for (const contribution of contributions) {
             // Share Formula

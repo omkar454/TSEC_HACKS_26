@@ -5,6 +5,7 @@ import * as projectService from "../services/projectService.js";
 // @route   POST /api/projects
 // @access  Creator
 export const createProject = asyncHandler(async (req, res) => {
+    console.log("Create Project Body:", req.body);
     const project = await projectService.createProjectService(req.user, req.body);
     res.status(201).json(project);
 });

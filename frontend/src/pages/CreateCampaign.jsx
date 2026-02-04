@@ -21,6 +21,7 @@ const CreateCampaign = () => {
         deadline: '',
         image: '',
         category: 'OTHER',
+        creatorStake: '',
         milestones: [
             { title: 'Project Kickoff & Pre-production', description: 'Script finalized and initial logistics set.', tranchePercent: 20 },
             { title: 'Production Completion', description: 'Raw footage/content recorded.', tranchePercent: 40 },
@@ -87,6 +88,7 @@ const CreateCampaign = () => {
                 category: form.category,
                 deadline: new Date(form.deadline),
                 imageUrl: form.image,
+                creatorStake: parseFloat(form.creatorStake) || 0,
                 milestones: form.milestones,
                 // Rules: Initial simplified set
                 fundUsageRules: [
@@ -95,6 +97,7 @@ const CreateCampaign = () => {
                     { category: 'Ops', maxAmount: parseFloat(form.target) * 0.2, requiresReceipt: true }
                 ]
             };
+            console.log("Sending Project Data:", projectData);
 
             const { data } = await api.post('/projects', projectData);
             setShowFeeModal(false);
@@ -227,17 +230,31 @@ const CreateCampaign = () => {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
                         <div className="flex flex-col gap-[10px]">
+                            <span className="font-epilogue font-medium text-[14px] leading-[22px] text-[#808191]">Creator Stake (%)</span>
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="number"
+                                    placeholder="20"
+                                    min="0"
+                                    max="100"
+                                    value={form.creatorStake}
+                                    onChange={(e) => handleFormFieldChange('creatorStake', e)}
+                                    className="py-[15px] sm:px-[25px] px-[15px] outline-none border-[1px] border-[#3a3a43] bg-transparent font-epilogue text-white text-[14px] placeholder:text-[#4b5264] rounded-[10px] w-full"
+                                />
+                            </div>
+                            <span className="text-[10px] text-[#808191]">Percentage of revenue you retain before investor distribution.</span>
+                        </div>
+
+                        <div className="flex flex-col gap-[10px]">
                             <span className="font-epilogue font-medium text-[14px] leading-[22px] text-[#808191]">Seed Quorum (%)</span>
                             <div className="p-[15px] bg-[#13131a] rounded-[10px] border border-[#3a3a43] text-[#4acd8d] font-bold text-sm">
                                 30% (Mandatory)
                             </div>
                         </div>
-                        <div className="flex flex-col gap-[10px]">
-                            <span className="font-epilogue font-medium text-[14px] leading-[22px] text-[#808191]">Risk Policy</span>
-                            <div className="p-4 bg-[#ef4444]/5 rounded-lg border border-[#ef4444]/20 text-[10px] text-[#ef4444] font-bold uppercase leading-relaxed">
-                                Fail to reach 30% by deadline = Mandatory Atomic Refund to all contributors.
-                            </div>
-                        </div>
+                    </div>
+                    <span className="font-epilogue font-medium text-[14px] leading-[22px] text-[#808191]">Risk Policy</span>
+                    <div className="p-4 bg-[#ef4444]/5 rounded-lg border border-[#ef4444]/20 text-[10px] text-[#ef4444] font-bold uppercase leading-relaxed">
+                        Fail to reach 30% by deadline = Mandatory Atomic Refund to all contributors.
                     </div>
                 </div>
 
@@ -302,7 +319,7 @@ const CreateCampaign = () => {
                         styles="bg-[#1dc071] w-full max-w-[300px] py-4 text-lg shadow-lg hover:shadow-[#1dc071]/40 hover:-translate-y-1 transition-all font-bold tracking-wide rounded-[12px]"
                     />
                 </div>
-            </form>
+            </form >
 
             <PaymentConfirmModal
                 isOpen={showFeeModal}
@@ -312,7 +329,7 @@ const CreateCampaign = () => {
                 title="Projects Listing Fee"
                 isLoading={isLoading}
             />
-        </div>
+        </div >
     )
 }
 

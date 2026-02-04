@@ -104,33 +104,3 @@ export const deleteProjectService = async (user, projectId) => {
 
     return { success: true };
 };
-export const submitMilestoneService = async (user, projectId, milestoneId, submissionUrl) => {
-    const project = await Project.findById(projectId);
-    if (!project) throw new Error("Project not found");
-
-    if (project.creatorId.toString() !== user._id.toString()) {
-        throw new Error("Only the creator can submit milestones.");
-    }
-
-    const milestone = project.milestones.id(milestoneId);
-    if (!milestone) throw new Error("Milestone not found");
-
-    if (milestone.status === "APPROVED") {
-        throw new Error("Cannot resubmit an approved milestone.");
-    }
-
-    milestone.status = "SUBMITTED";
-    milestone.submissionUrl = submissionUrl;
-
-    await project.save();
-
-    await AuditLog.create({
-        action: "MILESTONE_SUBMITTED",
-        actorId: user._id,
-        resourceId: project._id,
-        resourceModel: "Project",
-        details: { milestoneId, milestoneTitle: milestone.title, submissionUrl },
-    });
-
-    return project;
-};

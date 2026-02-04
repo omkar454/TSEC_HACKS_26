@@ -23,10 +23,10 @@ const CreateCampaign = () => {
         category: 'OTHER',
         creatorStake: '',
         milestones: [
-            { title: 'Project Kickoff & Pre-production', description: 'Script finalized and initial logistics set.', tranchePercent: 20 },
-            { title: 'Production Completion', description: 'Raw footage/content recorded.', tranchePercent: 40 },
-            { title: 'Final Delivery', description: 'Post-production complete and content ready for publishing.', tranchePercent: 30 },
-            { title: 'Public Release', description: 'Content successfully published to platform.', tranchePercent: 10 }
+            { title: 'Project Kickoff & Pre-production', description: 'Script finalized and initial logistics set.', tranchePercent: 20, milestoneType: 'KICKOFF' },
+            { title: 'Production Completion', description: 'Raw footage/content recorded.', tranchePercent: 40, milestoneType: 'PRODUCTION' },
+            { title: 'Final Delivery', description: 'Post-production complete and content ready for publishing.', tranchePercent: 30, milestoneType: 'FINAL_DELIVERY' },
+            { title: 'Public Release', description: 'Content successfully published to platform.', tranchePercent: 10, milestoneType: 'RELEASE' }
         ]
     });
 

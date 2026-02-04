@@ -42,9 +42,11 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/wallet", walletRoutes);
 import receiptRoutes from "./routes/receiptRoutes.js";
 import governanceRoutes from "./routes/governanceRoutes.js";
+import milestoneRoutes from "./routes/milestoneRoutes.js";
 
 app.use("/api/receipts", receiptRoutes);
 app.use("/api/governance", governanceRoutes);
+app.use("/api/milestones", milestoneRoutes);
 
 
 // Error Handling (Must be last)

@@ -61,13 +61,31 @@ const projectSchema = new mongoose.Schema(
             {
                 title: String,
                 description: String,
+                milestoneType: {
+                    type: String,
+                    enum: ["KICKOFF", "PRODUCTION", "FINAL_DELIVERY", "RELEASE"],
+                    default: "PRODUCTION"
+                },
+                textProof: String,
+                mediaUrls: [String],
+                finalLink: String,
                 status: {
                     type: String,
                     enum: ["PENDING", "SUBMITTED", "APPROVED", "REJECTED"],
                     default: "PENDING"
                 },
-                tranchePercent: Number, // Percentage of total funds to release upon approval
-                submissionUrl: String, // Evidence for milestone completion
+                tranchePercent: Number,
+                voteStats: {
+                    yesWeight: { type: Number, default: 0 },
+                    noWeight: { type: Number, default: 0 }
+                },
+                votes: [
+                    {
+                        voterId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+                        vote: { type: String, enum: ["YES", "NO"] },
+                        weight: { type: Number }
+                    }
+                ],
             }
         ],
         fundUsageRules: [

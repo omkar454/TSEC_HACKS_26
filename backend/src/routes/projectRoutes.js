@@ -22,7 +22,4 @@ router.route("/:id")
 router.route("/:id/status")
     .patch(protect, updateProjectStatus);
 
-router.route("/:id/milestones/:milestoneId/submit")
-    .patch(protect, creator, submitMilestone);
-
 export default router;

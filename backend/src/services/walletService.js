@@ -1,5 +1,6 @@
 import User from "../models/User.js";
 import Wallet from "../models/Wallet.js";
+import Project from "../models/Project.js";
 
 /**
  * Create a new wallet for the user.

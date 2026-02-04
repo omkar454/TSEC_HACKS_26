@@ -188,31 +188,74 @@ const CampaignDetails = () => {
         }
     }
 
-    const handleTrancheRelease = async (milestoneId) => {
-        if (!window.confirm("Approve milestone and release funds from escrow to creator?")) return;
+
+    const handleMilestoneSubmit = async (milestoneId, type) => {
+        let proofData = {};
+
+        if (type === 'KICKOFF') {
+            const textProof = window.prompt("Submit your Project Kickoff Plan / Script (Text):");
+            if (!textProof) return;
+            proofData = { textProof };
+        } else if (type === 'PRODUCTION' || type === 'FINAL_DELIVERY') {
+            // New logic: Trigger file upload
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.multiple = true;
+            input.accept = 'image/*,video/*,application/pdf';
+
+            input.onchange = async (e) => {
+                const files = e.target.files;
+                if (!files.length) return;
+
+                setIsLoading(true);
+                try {
+                    const formData = new FormData();
+                    for (let i = 0; i < files.length; i++) {
+                        formData.append('media', files[i]);
+                    }
+
+                    const { data: uploadResult } = await api.post('/milestones/upload', formData, {
+                        headers: { 'Content-Type': 'multipart/form-data' }
+                    });
+
+                    await api.post(`/milestones/${id}/${milestoneId}/submit`, { mediaUrls: uploadResult.urls });
+                    alert("Multimedia Proof Uploaded & Submitted!");
+                    setRefreshTrigger(prev => prev + 1);
+                } catch (error) {
+                    alert("Upload Failed: " + (error.response?.data?.message || error.message));
+                } finally {
+                    setIsLoading(false);
+                }
+            };
+            input.click();
+            return; // Exit early as upload is handled in onchange
+        } else if (type === 'RELEASE') {
+            const finalLink = window.prompt("Enter the final Public URL (Social Media/Platform):");
+            if (!finalLink) return;
+            proofData = { finalLink };
+        }
+
         setIsLoading(true);
         try {
-            await api.post(`/finance/projects/${id}/milestones/${milestoneId}/release`);
-            alert("Tranche Released Successfully!");
+            await api.post(`/milestones/${id}/${milestoneId}/submit`, proofData);
+            alert("Milestone Work Submitted for Review!");
             setRefreshTrigger(prev => prev + 1);
         } catch (error) {
-            alert("Release Failed: " + (error.response?.data?.message || error.message));
+            alert("Submission Failed: " + (error.response?.data?.message || error.message));
         } finally {
             setIsLoading(false);
         }
     };
 
-    const handleMilestoneSubmit = async (milestoneId) => {
-        const url = window.prompt("Enter evidence URL (YouTube link, PDF, Drive link):");
-        if (!url) return;
-
+    const handleMilestoneVote = async (milestoneId, vote) => {
+        if (!window.confirm(`Are you sure you want to vote ${vote}? This uses your weighted contribution power.`)) return;
         setIsLoading(true);
         try {
-            await api.patch(`/projects/${id}/milestones/${milestoneId}/submit`, { submissionUrl: url });
-            alert("Milestone Work Submitted for Review!");
+            await api.post(`/milestones/${id}/${milestoneId}/vote`, { vote });
+            alert(`Your ${vote} vote has been recorded!`);
             setRefreshTrigger(prev => prev + 1);
         } catch (error) {
-            alert("Submission Failed: " + (error.response?.data?.message || error.message));
+            alert("Voting Failed: " + (error.response?.data?.message || error.message));
         } finally {
             setIsLoading(false);
         }
@@ -387,22 +430,79 @@ const CampaignDetails = () => {
                                                     </div>
                                                 </div>
 
-                                                {/* Evidence Link */}
-                                                {milestone.submissionUrl && (
-                                                    <div className="mt-3 p-3 bg-[#13131a] rounded-lg border border-[#3a3a43] flex items-center justify-between">
-                                                        <span className="text-[10px] text-[#808191] uppercase font-bold">Evidence:</span>
-                                                        <a href={milestone.submissionUrl} target="_blank" rel="noreferrer" className="text-[#8c6dfd] text-xs font-bold hover:underline">View Work Proof</a>
+                                                {/* Evidence / Proof Display */}
+                                                {(milestone.textProof || milestone.mediaUrls?.length > 0 || milestone.finalLink) && (
+                                                    <div className="mt-4 p-4 bg-[#13131a] rounded-lg border border-[#3a3a43] flex flex-col gap-3">
+                                                        <div className="flex items-center justify-between">
+                                                            <span className="text-[10px] text-[#808191] uppercase font-bold tracking-widest">Digital Evidence Stack:</span>
+                                                        </div>
+
+                                                        {milestone.textProof && (
+                                                            <div className="p-3 bg-[#1c1c24] rounded border border-[#3a3a43]">
+                                                                <p className="text-gray-300 text-xs italic">"{milestone.textProof}"</p>
+                                                            </div>
+                                                        )}
+
+                                                        {milestone.mediaUrls?.length > 0 && (
+                                                            <div className="flex flex-wrap gap-2">
+                                                                {milestone.mediaUrls.map((url, i) => (
+                                                                    <a key={i} href={url} target="_blank" rel="noreferrer" className="px-3 py-1 bg-[#8c6dfd]/10 text-[#8c6dfd] border border-[#8c6dfd]/30 rounded-full text-[10px] font-bold hover:bg-[#8c6dfd]/20 transition-all">Multimedia #{i + 1}</a>
+                                                                ))}
+                                                            </div>
+                                                        )}
+
+                                                        {milestone.finalLink && (
+                                                            <a href={milestone.finalLink} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-[#4acd8d] text-xs font-bold hover:underline">
+                                                                <CheckCircle size={14} /> View Final Content Release
+                                                            </a>
+                                                        )}
+                                                    </div>
+                                                )}
+
+                                                {/* Voting / Governance UI */}
+                                                {milestone.status === 'SUBMITTED' && (
+                                                    <div className="mt-4 p-4 border border-[#8c6dfd]/20 rounded-xl bg-[#8c6dfd]/5">
+                                                        <div className="flex justify-between items-center mb-2">
+                                                            <span className="text-white text-xs font-bold uppercase tracking-tight">Community Governance Progress</span>
+                                                            <span className="text-[#8c6dfd] text-[10px] font-bold">{milestone.voteStats?.yesWeight.toFixed(1)}% / 50% Req.</span>
+                                                        </div>
+
+                                                        <div className="h-2 w-full bg-[#13131a] rounded-full overflow-hidden border border-[#3a3a43] flex">
+                                                            <div className="bg-[#4acd8d] h-full transition-all duration-500" style={{ width: `${milestone.voteStats?.yesWeight || 0}%` }} />
+                                                            <div className="bg-[#ef4444] h-full transition-all duration-500" style={{ width: `${milestone.voteStats?.noWeight || 0}%` }} />
+                                                        </div>
+
+                                                        {user?._id !== campaign?.creatorId && (
+                                                            <div className="flex gap-2 mt-4">
+                                                                <button
+                                                                    onClick={() => handleMilestoneVote(milestone._id, 'YES')}
+                                                                    className="flex-1 py-1.5 bg-[#4acd8d] text-primary font-bold text-[10px] rounded uppercase hover:bg-[#3fb87f]"
+                                                                >
+                                                                    I Approve (YES)
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => handleMilestoneVote(milestone._id, 'NO')}
+                                                                    className="flex-1 py-1.5 bg-transparent border border-[#ef4444] text-[#ef4444] font-bold text-[10px] rounded uppercase hover:bg-[#ef4444] hover:text-white"
+                                                                >
+                                                                    Reject (NO)
+                                                                </button>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 )}
 
                                                 {/* Creator: Submit Button */}
-                                                {milestone.status === 'PENDING' && user?.id === campaign?.creatorId && (
-                                                    <button onClick={() => handleMilestoneSubmit(milestone._id)} className="mt-4 w-full py-2 border border-[#8c6dfd] text-[#8c6dfd] rounded-lg font-bold text-xs uppercase hover:bg-[#8c6dfd] hover:text-white transition-all">Submit Work Evidence</button>
+                                                {milestone.status === 'PENDING' && user?._id === campaign?.creatorId && (
+                                                    <button onClick={() => handleMilestoneSubmit(milestone._id, milestone.milestoneType)} className="mt-4 w-full py-2 border border-[#8c6dfd] text-[#8c6dfd] rounded-lg font-bold text-xs uppercase hover:bg-[#8c6dfd] hover:text-white transition-all">
+                                                        Submit Proof for {milestone.milestoneType}
+                                                    </button>
                                                 )}
 
-                                                {/* Admin: Approve Button */}
-                                                {(milestone.status === 'SUBMITTED' || milestone.status === 'PENDING') && user?.role === 'ADMIN' && (
-                                                    <button onClick={() => handleTrancheRelease(milestone._id)} className="mt-4 w-full py-2 bg-[#8c6dfd] text-white rounded-lg font-bold text-xs uppercase shadow-lg shadow-[#8c6dfd]/20">Approve & Release Tranche</button>
+                                                {/* Admin: Oversight (Approved state) */}
+                                                {milestone.status === 'APPROVED' && (
+                                                    <div className="mt-4 flex items-center justify-center gap-2 text-[#4acd8d] text-[10px] font-black uppercase tracking-tighter">
+                                                        <ShieldCheck size={14} /> Milestone Verified & Tranche Released
+                                                    </div>
                                                 )}
                                             </div>
                                         ))}
@@ -411,7 +511,7 @@ const CampaignDetails = () => {
 
                                 <div className="flex justify-between items-center mt-6">
                                     <h4 className="font-epilogue font-semibold text-[18px] text-[var(--text-primary)] uppercase">Governance Proposals</h4>
-                                    {user?.id === campaign?.creatorId && (
+                                    {user?._id === campaign?.creatorId && (
                                         <CustomButton btnType="button" title="Request Extension" styles="bg-[#8c6dfd] py-2 px-4 text-xs" handleClick={() => setShowExtensionModal(true)} />
                                     )}
                                 </div>
@@ -481,7 +581,7 @@ const CampaignDetails = () => {
                             <div className="flex flex-col gap-8">
                                 <div className="flex justify-between items-center mb-6">
                                     <h4 className="font-epilogue font-semibold text-[18px] text-[var(--text-primary)] uppercase">Expense Claims</h4>
-                                    {user?.id === campaign?.creatorId && (
+                                    {user?._id === campaign?.creatorId && (
                                         <CustomButton btnType="button" title={showExpenseForm ? "Close" : "Submit Bill"} styles="bg-[#8c6dfd] py-1 px-4 text-xs" handleClick={() => setShowExpenseForm(!showExpenseForm)} />
                                     )}
                                 </div>

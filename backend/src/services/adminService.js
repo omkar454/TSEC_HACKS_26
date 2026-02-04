@@ -118,3 +118,41 @@ export const getRiskReportService = async () => {
         riskyProjects
     };
 };
+
+/**
+ * Get Global Audit Logs
+ * Restricted to Admins for platform governance.
+ */
+export const getGlobalAuditLogsService = async () => {
+    return await AuditLog.find()
+        .populate("actorId", "name role email")
+        .sort({ createdAt: -1 })
+        .limit(100); // Limit to last 100 for performance
+};
+
+/**
+ * Get Overall Platform Analytics
+ * Computes status distribution, funding total, and project volume.
+ */
+export const getOverallAnalyticsService = async () => {
+    const totalProjects = await Project.countDocuments();
+    const statusDistribution = await Project.aggregate([
+        { $group: { _id: "$status", count: { $sum: 1 } } }
+    ]);
+
+    const fundingStats = await Project.aggregate([
+        { $group: { _id: null, totalRaised: { $sum: "$currentFunding" }, avgFunding: { $avg: "$currentFunding" } } }
+    ]);
+
+    const recentActivity = await AuditLog.find()
+        .sort({ createdAt: -1 })
+        .limit(5);
+
+    return {
+        totalProjects,
+        statusDistribution,
+        totalFunding: fundingStats[0]?.totalRaised || 0,
+        averageFunding: fundingStats[0]?.avgFunding || 0,
+        recentActivity
+    };
+};

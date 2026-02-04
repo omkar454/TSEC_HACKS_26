@@ -37,11 +37,12 @@ const Sidebar = () => {
             imgUrl: MonitorPlay,
             link: '/dashboard',
         }] : []),
-        {
+        // Contributor & Creator only
+        ...(user?.role !== 'ADMIN' ? [{
             name: 'withdraw',
             imgUrl: Wallet,
             link: '/wallet',
-        },
+        }] : []),
         {
             name: 'profile',
             imgUrl: User,

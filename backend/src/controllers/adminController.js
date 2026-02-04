@@ -30,3 +30,18 @@ export const getRiskReport = asyncHandler(async (req, res) => {
     const report = await adminService.getRiskReportService();
     res.json(report);
 });
+// @desc    Get All Audit Logs
+// @route   GET /api/admin/logs
+// @access  Admin
+export const getGlobalLogs = asyncHandler(async (req, res) => {
+    const logs = await adminService.getGlobalAuditLogsService();
+    res.json(logs);
+});
+
+// @desc    Get Platform Analytics
+// @route   GET /api/admin/analytics
+// @access  Admin
+export const getAnalytics = asyncHandler(async (req, res) => {
+    const analytics = await adminService.getOverallAnalyticsService();
+    res.json(analytics);
+});

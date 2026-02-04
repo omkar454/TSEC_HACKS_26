@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react'
 import CustomButton from '../components/CustomButton'
 import api from '../utils/api'
-import { Wallet as WalletIcon, ExternalLink, PlusCircle, ArrowDownCircle } from 'lucide-react'
+import { Wallet as WalletIcon, ExternalLink, PlusCircle, ArrowDownCircle, ShieldAlert, Info } from 'lucide-react'
 import finternetService from '../services/finternetService'
 import PaymentConfirmModal from '../components/PaymentConfirmModal'
+import { useAuth } from '../context/AuthContext'
 
 const Wallet = () => {
+    const { user } = useAuth();
     const [wallet, setWallet] = useState(null)
     const [isLoading, setIsLoading] = useState(true)
 
@@ -100,6 +102,16 @@ const Wallet = () => {
 
     if (isLoading) return <div className="text-white text-center mt-10">Loading Wallet...</div>
 
+    if (user?.role === 'ADMIN') {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[500px] text-[var(--text-primary)]">
+                <ShieldAlert size={60} className="text-[#ef4444] mb-4" />
+                <h2 className="text-2xl font-bold">Access Restricted</h2>
+                <p className="text-[#808191] mt-2">Administrative accounts do not have personal wallets.</p>
+            </div>
+        )
+    }
+
     if (!wallet) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[500px] gap-6 text-[var(--text-primary)]">
@@ -148,20 +160,30 @@ const Wallet = () => {
                         </div>
                     </div>
 
-                    <div className="flex gap-4 mt-2">
-                        <button
-                            onClick={() => openTransfer('ADD')}
-                            className="flex-1 flex items-center justify-center gap-2 bg-[#1dc071] hover:bg-[#169457] text-white py-3 rounded-[10px] font-bold transition-all"
-                        >
-                            <PlusCircle size={18} /> Add Funds
-                        </button>
-                        <button
-                            onClick={() => openTransfer('WITHDRAW')}
-                            className="flex-1 flex items-center justify-center gap-2 bg-[#2c2f32] border border-[#3a3a43] hover:bg-[#3a3a43] text-white py-3 rounded-[10px] font-bold transition-all"
-                        >
-                            <ArrowDownCircle size={18} /> Withdraw
-                        </button>
-                    </div>
+                    {user?.role === 'CONTRIBUTOR' && (
+                        <div className="flex gap-4 mt-2">
+                            <button
+                                onClick={() => openTransfer('ADD')}
+                                className="flex-1 flex items-center justify-center gap-2 bg-[#1dc071] hover:bg-[#169457] text-white py-3 rounded-[10px] font-bold transition-all"
+                            >
+                                <PlusCircle size={18} /> Add Funds
+                            </button>
+                            <button
+                                onClick={() => openTransfer('WITHDRAW')}
+                                className="flex-1 flex items-center justify-center gap-2 bg-[#2c2f32] border border-[#3a3a43] hover:bg-[#3a3a43] text-white py-3 rounded-[10px] font-bold transition-all"
+                            >
+                                <ArrowDownCircle size={18} /> Withdraw
+                            </button>
+                        </div>
+                    )}
+
+                    {user?.role === 'CREATOR' && (
+                        <div className="mt-4 p-4 bg-[#1c1c24] rounded-xl border border-yellow-500/30">
+                            <p className="text-xs text-yellow-500 font-semibold italic flex items-center gap-2">
+                                <Info size={14} /> Creator wallets are view-only. Funds are managed via project budgets.
+                            </p>
+                        </div>
+                    )}
                 </div>
 
                 {/* Inline Transfer Section */}

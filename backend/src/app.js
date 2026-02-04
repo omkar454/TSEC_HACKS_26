@@ -40,6 +40,8 @@ app.use("/api/expenses", expenseRoutes);
 app.use("/api/revenue", revenueRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/wallet", walletRoutes);
+import receiptRoutes from "./routes/receiptRoutes.js";
+app.use("/api/receipts", receiptRoutes);
 
 
 // Error Handling (Must be last)

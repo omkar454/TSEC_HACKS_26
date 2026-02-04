@@ -139,7 +139,7 @@ const CreatorDashboard = () => {
             )}
 
             {/* Quick Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="glass-panel p-6 rounded-[20px]">
                     <h3 className="text-[#808191] text-sm mb-2">Total Raised</h3>
                     <p className="text-[24px] font-bold text-[var(--text-primary)]">₹ {stats.raised.toLocaleString()}</p>
@@ -151,6 +151,14 @@ const CreatorDashboard = () => {
                 <div className="glass-panel p-6 rounded-[20px]">
                     <h3 className="text-[#808191] text-sm mb-2">Revenue Distributed</h3>
                     <p className="text-[24px] font-bold text-[#8c6dfd]">₹ {stats.revenue.toLocaleString()}</p>
+                </div>
+                <div className="glass-panel p-6 rounded-[20px] border border-[#f0ad4e]/30">
+                    <h3 className="text-[#f0ad4e] text-sm mb-2 flex items-center gap-2">
+                        <Coins size={14} /> My Revenue Stake
+                    </h3>
+                    <p className="text-[24px] font-bold text-white">
+                        {projects.find(p => p._id === selectedProjectId)?.creatorStake || 0}%
+                    </p>
                 </div>
             </div>
 

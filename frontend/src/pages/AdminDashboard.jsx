@@ -100,7 +100,7 @@ const AdminDashboard = () => {
                             <div key={p._id} className="flex justify-between items-center bg-[var(--background)] p-4 rounded-[10px] border-l-4 border-yellow-500">
                                 <div>
                                     <h4 className="font-bold">{p.title}</h4>
-                                    <p className="text-xs text-[#808191]">Created by: {p.creatorId?.name || p.creatorId}</p>
+                                    <p className="text-xs text-[#808191]">Created by: {p.creatorId?.name || p.creatorId} • Stake: {p.creatorStake || 0}%</p>
                                 </div>
                                 <div className="flex gap-2">
                                     <button
@@ -157,7 +157,7 @@ const AdminDashboard = () => {
                                                     </span>
                                                 )}
                                             </h4>
-                                            <p className="text-xs text-[#808191]">Status: {p.status} • Health: OK</p>
+                                            <p className="text-xs text-[#808191]">Status: {p.status} • Stake: {p.creatorStake || 0}% • Health: OK</p>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-4">

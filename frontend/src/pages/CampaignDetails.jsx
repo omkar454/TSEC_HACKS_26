@@ -86,7 +86,6 @@ const CampaignDetails = () => {
                     _id: project._id,
                     milestones: project.milestones || [],
                     tiers: project.tiers || {},
-                    tiers: project.tiers || {},
                     creatorStake: Number(project.creatorStake) || 0
                 };
                 console.log("Fetched Project Data:", project);
@@ -105,8 +104,8 @@ const CampaignDetails = () => {
                 })));
 
                 try {
-                    const { data: creatorWallet } = await api.get(`/wallet/creator-of-project/${id}`);
-                    setCampaign(prev => ({ ...prev, fundsLocked: creatorWallet.balance }));
+                    const { data: projectWallet } = await api.get(`/wallet/project/${id}`);
+                    setCampaign(prev => ({ ...prev, fundsLocked: projectWallet.balance }));
                 } catch (err) { console.error(err); }
 
                 const { data: contribList } = await api.get(`/finance/projects/${id}/contributions`);
@@ -118,7 +117,13 @@ const CampaignDetails = () => {
                         const myTotal = myContributions
                             .filter(c => (c.projectId?._id === id || c.projectId === id) && c.status === 'COMPLETED')
                             .reduce((acc, curr) => acc + curr.amount, 0);
-                        setUserOwnership(((myTotal / project.currentFunding) * 100).toFixed(2));
+
+                        const totalFunding = project.currentFunding || 1;
+                        const poolShare = (myTotal / totalFunding);
+                        const creatorStakeFactor = 1 - (project.creatorStake / 100);
+                        const finalRevenueShare = (poolShare * creatorStakeFactor * 100).toFixed(2);
+
+                        setUserOwnership(finalRevenueShare);
                     } catch (err) { console.error(err); }
                 }
 
@@ -320,7 +325,15 @@ const CampaignDetails = () => {
                     <CountBox title={`Raised of ₹${campaign.target.toLocaleString()}`} value={`₹${campaign.raised.toLocaleString()}`} />
                     <div className="flex flex-col items-center w-[150px]">
                         <h4 className="font-epilogue font-bold text-[30px] text-[var(--text-primary)] p-3 bg-[var(--secondary)] rounded-t-[10px] w-full text-center truncate">
-                            {100 - (Number(campaign.creatorStake) || 0)}%
+                            {campaign.creatorStake}%
+                        </h4>
+                        <p className="font-epilogue font-normal text-[16px] text-[var(--text-secondary)] bg-[var(--background)] px-3 py-2 w-full rounded-b-[10px] text-center border-x border-b border-[#3a3a43]">
+                            Creator Pool
+                        </p>
+                    </div>
+                    <div className="flex flex-col items-center w-[150px]">
+                        <h4 className="font-epilogue font-bold text-[30px] text-[var(--text-primary)] p-3 bg-[var(--secondary)] rounded-t-[10px] w-full text-center truncate">
+                            {100 - campaign.creatorStake}%
                         </h4>
                         <p className="font-epilogue font-normal text-[16px] text-[var(--text-secondary)] bg-[var(--background)] px-3 py-2 w-full rounded-b-[10px] text-center border-x border-b border-[#3a3a43]">
                             Investor Pool
@@ -627,7 +640,7 @@ const CampaignDetails = () => {
                         <div className="flex items-center gap-3 mb-4">
                             <PieChart className="text-[#4acd8d]" size={24} />
                             <div>
-                                <p className="text-[#808191] text-xs uppercase font-bold">Your Ownership</p>
+                                <p className="text-[#808191] text-xs uppercase font-bold">Your Revenue Share</p>
                                 <p className="text-2xl font-bold text-white">{userOwnership}%</p>
                             </div>
                         </div>

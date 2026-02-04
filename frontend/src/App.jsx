@@ -13,6 +13,7 @@ import Wallet from './pages/Wallet';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminExpenses from './pages/AdminExpenses';
 import { useAuth } from './context/AuthContext';
+import FinternetMonitor from './components/FinternetMonitor';
 
 const App = () => {
   const { user } = useAuth();
@@ -39,6 +40,7 @@ const App = () => {
           <Route path="/campaign-details/:id" element={<CampaignDetails />} />
         </Routes>
       </div>
+      <FinternetMonitor />
     </div>
   )
 }

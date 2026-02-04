@@ -6,6 +6,8 @@ import { useAuth } from '../context/AuthContext';
 import CustomButton from '../components/CustomButton';
 import FormField from '../components/FormField';
 import api from '../utils/api';
+import finternetService from '../services/finternetService';
+import PaymentConfirmModal from '../components/PaymentConfirmModal';
 
 const CreateCampaign = () => {
     const navigate = useNavigate();
@@ -53,12 +55,25 @@ const CreateCampaign = () => {
         setForm({ ...form, [fieldName]: e.target.value })
     }
 
-    const handleSubmit = async (e) => {
+    const [showFeeModal, setShowFeeModal] = useState(false);
+
+    const handleFormSubmit = (e) => {
         e.preventDefault();
+        // Validate
+        if (!form.title || !form.target) return alert("Please fill required fields");
+        setShowFeeModal(true);
+    };
+
+    const executeCreation = async () => {
         setIsLoading(true);
         console.log("Form Data Submitted:", form);
 
         try {
+            // Execute Finternet Fee
+            await finternetService.createPaymentIntent(50, 'INR', 'Campaign Listing Fee: ' + form.title);
+            // We assume backend doesn't track this fee specifically for now, or we could send a metadata flag.
+            // Proceed to creation.
+
             // Transform to backend expected format
             const projectData = {
                 title: form.title,
@@ -77,11 +92,13 @@ const CreateCampaign = () => {
             };
 
             const { data } = await api.post('/projects', projectData);
+            setShowFeeModal(false);
             alert("Project Created Successfully!");
             navigate(`/campaign-details/${data._id}`); // Use backend ID
         } catch (error) {
             console.error("Project Creation Failed:", error);
             alert("Failed to create project: " + (error.response?.data?.message || error.message));
+            setShowFeeModal(false);
         } finally {
             setIsLoading(false);
         }
@@ -111,7 +128,7 @@ const CreateCampaign = () => {
                 </p>
             </div>
 
-            <form onSubmit={handleSubmit} className="w-full flex flex-col gap-[30px] relative z-10 max-w-[800px]">
+            <form onSubmit={handleFormSubmit} className="w-full flex flex-col gap-[30px] relative z-10 max-w-[800px]">
 
                 {/* Section 1: The Pitch */}
                 <div className="bg-[#1c1c24]/60 backdrop-blur-md p-8 rounded-[24px] border border-[#3a3a43] hover:border-[#8c6dfd]/50 transition-colors group">
@@ -260,6 +277,15 @@ const CreateCampaign = () => {
                     />
                 </div>
             </form>
+
+            <PaymentConfirmModal
+                isOpen={showFeeModal}
+                onClose={() => setShowFeeModal(false)}
+                onConfirm={executeCreation}
+                amount={50}
+                title="Projects Listing Fee"
+                isLoading={isLoading}
+            />
         </div>
     )
 }

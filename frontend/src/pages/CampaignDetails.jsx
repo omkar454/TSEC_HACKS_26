@@ -8,6 +8,8 @@ import CustomButton from '../components/CustomButton'
 import UploadBillForm from '../components/UploadBillForm'
 import { CAMPAIGN_STATES, EXPENSE_STATES } from '../constants'
 import api from '../utils/api'
+import finternetService from '../services/finternetService'
+import PaymentConfirmModal from '../components/PaymentConfirmModal'
 
 const CampaignDetails = () => {
     const { user } = useAuth(); // Get user for role check
@@ -109,9 +111,55 @@ const CampaignDetails = () => {
         if (id) fetchData();
     }, [id, refreshTrigger]);
 
-    const handleFund = async () => {
+    // Top-up Modal State
+    const [showTopUpModal, setShowTopUpModal] = useState(false);
+    const [deficitAmount, setDeficitAmount] = useState(0);
+
+    const handleFundCheck = async () => {
         if (!amount) return;
         setIsLoading(true);
+        try {
+            // 1. Check current wallet balance first
+            let currentBalance = 0;
+            try {
+                const { data: walletData } = await api.get('/wallet');
+                currentBalance = walletData.balance;
+            } catch (err) {
+                currentBalance = 0;
+            }
+
+            const investmentAmount = parseFloat(amount);
+
+            if (investmentAmount > currentBalance) {
+                const deficit = investmentAmount - currentBalance;
+                setDeficitAmount(deficit);
+                setShowTopUpModal(true);
+                setIsLoading(false); // Pause loading to wait for modal
+                return;
+            }
+
+            // Directly Proceed if enough funds
+            executeFund();
+        } catch (error) {
+            console.error(error);
+            setIsLoading(false);
+        }
+    };
+
+    const executeTopUpAndFund = async () => {
+        try {
+            setIsLoading(true);
+            await finternetService.createPaymentIntent(deficitAmount, 'INR', 'Instant Top-up for Investment');
+            await api.post('/wallet/add-funds', { amount: deficitAmount });
+            setShowTopUpModal(false);
+            await executeFund();
+        } catch (error) {
+            alert("Top-up failed: " + error.message);
+            setIsLoading(false);
+        }
+    }
+
+    const executeFund = async () => {
         try {
             await api.post('/finance/contribute', {
                 projectId: id,
@@ -120,10 +168,8 @@ const CampaignDetails = () => {
 
             alert(`Successfully invested ₹${amount}.`);
             setAmount('');
-            // Refresh data
             window.location.reload();
         } catch (error) {
-            console.error("Funding failed:", error);
             alert("Funding failed: " + (error.response?.data?.message || error.message));
         } finally {
             setIsLoading(false);
@@ -478,7 +524,7 @@ const CampaignDetails = () => {
                                             btnType="button"
                                             title="Fund Project"
                                             styles="w-full bg-[#8c6dfd] mt-4"
-                                            handleClick={handleFund}
+                                            handleClick={handleFundCheck}
                                         />
                                         <p className="text-[#808191] text-xs text-center mt-3 leading-relaxed">
                                             ℹ️ Funds are securely locked in the smart contract and can only be spent with contributor approval.
@@ -498,6 +544,15 @@ const CampaignDetails = () => {
                     </div>
                 </div>
             </div>
+
+            <PaymentConfirmModal
+                isOpen={showTopUpModal}
+                onClose={() => setShowTopUpModal(false)}
+                onConfirm={executeTopUpAndFund}
+                amount={deficitAmount}
+                title="Investment Top-up"
+                isLoading={isLoading}
+            />
         </div>
     )
 }

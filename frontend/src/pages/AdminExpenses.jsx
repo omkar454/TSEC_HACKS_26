@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { ShieldAlert, CheckCircle, XCircle, Info, ExternalLink, Loader } from 'lucide-react';
 import api from '../utils/api';
+import finternetService from '../services/finternetService';
+import PaymentConfirmModal from '../components/PaymentConfirmModal';
 
 const AdminExpenses = () => {
     const [expenses, setExpenses] = useState([]);
@@ -22,15 +24,44 @@ const AdminExpenses = () => {
         fetchPendingExpenses();
     }, []);
 
-    const handleReview = async (id, status) => {
-        const action = status === 'APPROVED' ? 'APPROVE' : 'REJECT';
-        if (!window.confirm(`Are you sure you want to ${action} this expense?`)) return;
+    const [showPayoutModal, setShowPayoutModal] = useState(false);
+    const [selectedExpense, setSelectedExpense] = useState(null);
 
+    const handleReviewCheck = (id, status) => {
+        if (status === 'REJECTED') {
+            if (window.confirm("Reject this expense?")) executeReview(id, 'REJECTED');
+            return;
+        }
+
+        // Approval Flow
+        const exp = expenses.find(e => e._id === id);
+        if (exp) {
+            setSelectedExpense(exp);
+            setShowPayoutModal(true);
+        }
+    };
+
+    const executePayoutAndApprove = async () => {
+        if (!selectedExpense) return;
+        setIsLoading(true);
+        try {
+            await finternetService.createPayoutIntent(selectedExpense.amount, 'INR', 'Expense Payout: ' + selectedExpense.title);
+            await executeReview(selectedExpense._id, 'APPROVED');
+            setShowPayoutModal(false);
+        } catch (error) {
+            alert("Payout Failed: " + error.message);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const executeReview = async (id, status) => {
         try {
             await api.patch(`/expenses/${id}/status`, { status });
-            alert(`Expense ${status.toLowerCase()} successfully.`);
+            // alert(`Expense ${status.toLowerCase()} successfully.`);
             fetchPendingExpenses();
         } catch (error) {
+            console.error(error);
             alert("Action Failed: " + (error.response?.data?.message || error.message));
         }
     };
@@ -101,13 +132,13 @@ const AdminExpenses = () => {
                                     <div className="flex flex-col w-full gap-3">
                                         <div className="flex gap-2">
                                             <button
-                                                onClick={() => handleReview(exp._id, 'APPROVED')}
+                                                onClick={() => handleReviewCheck(exp._id, 'APPROVED')}
                                                 className="flex-1 bg-[#4acd8d] text-primary font-bold py-3 rounded-xl hover:opacity-90 transition-all shadow-lg shadow-[#4acd8d]/20"
                                             >
                                                 Approve
                                             </button>
                                             <button
-                                                onClick={() => handleReview(exp._id, 'REJECTED')}
+                                                onClick={() => handleReviewCheck(exp._id, 'REJECTED')}
                                                 className="flex-1 bg-[#ef4444] text-white font-bold py-3 rounded-xl hover:opacity-90 transition-all shadow-lg shadow-[#ef4444]/20"
                                             >
                                                 Reject
@@ -128,6 +159,15 @@ const AdminExpenses = () => {
                     ))
                 )}
             </div>
+
+            <PaymentConfirmModal
+                isOpen={showPayoutModal}
+                onClose={() => setShowPayoutModal(false)}
+                onConfirm={executePayoutAndApprove}
+                amount={selectedExpense?.amount || 0}
+                title={`Payout for: ${selectedExpense?.title}`}
+                isLoading={isLoading}
+            />
         </div>
     );
 };

@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react'
 import CustomButton from '../components/CustomButton'
 import api from '../utils/api'
 import { Wallet as WalletIcon, ExternalLink, PlusCircle, ArrowDownCircle } from 'lucide-react'
+import finternetService from '../services/finternetService'
+import PaymentConfirmModal from '../components/PaymentConfirmModal'
 
 const Wallet = () => {
     const [wallet, setWallet] = useState(null)
@@ -52,21 +54,45 @@ const Wallet = () => {
         setErrorMessage('');
     }
 
-    const handleTransaction = async (e) => {
+    const [showConfirmModal, setShowConfirmModal] = useState(false);
+
+    // Initial check before modal
+    const handleInitiateTransaction = (e) => {
         e.preventDefault();
         if (!amount || isNaN(amount) || Number(amount) <= 0) return alert("Invalid amount");
 
-        const endpoint = bookingType === 'ADD' ? '/wallet/add-funds' : '/wallet/withdraw';
+        if (bookingType === 'ADD') {
+            setShowConfirmModal(true);
+        } else {
+            // Withdraw flow doesn't use Finternet directly in this demo (or could, but avoiding complexity)
+            executeTransaction();
+        }
+    }
 
+    const executeTransaction = async () => {
         try {
             setIsLoading(true);
-            const { data } = await api.post(endpoint, { amount });
-            setWallet(data);
-            alert(`Successfully ${bookingType === 'ADD' ? 'added' : 'withdrawn'} ₹${amount}`);
+
+            if (bookingType === 'ADD') {
+                await finternetService.createPaymentIntent(amount, 'INR', 'Wallet Top-up');
+
+                // 2. Update Internal Ledger
+                const { data } = await api.post('/wallet/add-funds', { amount });
+                setWallet(data);
+                // alert(`Successfully added ₹${amount} via Finternet Gateway!`); 
+            } else {
+                // Withdraw Flow
+                const { data } = await api.post('/wallet/withdraw', { amount });
+                setWallet(data);
+                alert(`Successfully withdrawn ₹${amount}`);
+            }
+
+            setShowConfirmModal(false);
             setShowTransfer(false);
             setAmount('');
         } catch (error) {
-            alert(`Failed to ${bookingType.toLowerCase()}: ` + (error.response?.data?.message || error.message));
+            console.error("Transaction failed:", error);
+            alert(`Failed: ` + (error.response?.data?.message || error.message));
         } finally {
             setIsLoading(false);
         }
@@ -150,7 +176,7 @@ const Wallet = () => {
                                 : 'Transfer funds back to your bank account via standard simulation.'}
                         </p>
 
-                        <form onSubmit={handleTransaction} className="flex flex-col gap-4">
+                        <form onSubmit={handleInitiateTransaction} className="flex flex-col gap-4">
                             <div className="flex flex-col gap-2">
                                 <label className="text-[#808191] text-sm font-medium">Amount (INR)</label>
                                 <input
@@ -183,6 +209,15 @@ const Wallet = () => {
                     </div>
                 )}
             </div>
+
+            <PaymentConfirmModal
+                isOpen={showConfirmModal}
+                onClose={() => setShowConfirmModal(false)}
+                onConfirm={executeTransaction}
+                amount={amount}
+                title="Wallet Deposit"
+                isLoading={isLoading}
+            />
         </div>
     )
 }

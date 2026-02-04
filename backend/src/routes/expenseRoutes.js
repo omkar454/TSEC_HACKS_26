@@ -3,7 +3,8 @@ import {
     submitExpense,
     reviewExpense,
     getProjectExpenses,
-    getExpenseById
+    getExpenseById,
+    getPendingExpenses
 } from "../controllers/expenseController.js";
 import { protect, admin, creator } from "../middleware/authMiddleware.js";
 
@@ -15,13 +16,13 @@ router.post("/", protect, creator, submitExpense);
 // Review expense (Admin only)
 router.patch("/:id/status", protect, admin, reviewExpense);
 
+// Get all pending expenses (Admin only)
+router.get("/pending", protect, admin, getPendingExpenses);
+
 // Get single expense
 router.get("/:id", protect, getExpenseById);
 
-// Get expenses for a project (mounted differently or here? Let's use query param or path)
-// Actually, RESTful is often GET /projects/:id/expenses. 
-// But we can also expose GET /expenses?projectId=...
-// For now, let's keep it simple:
+// Get expenses for a project
 router.get("/project/:projectId", protect, getProjectExpenses);
 
 export default router;

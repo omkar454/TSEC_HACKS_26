@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import Expense from "../models/Expense.js";
 import Project from "../models/Project.js";
 import Wallet from "../models/Wallet.js";
+import User from "../models/User.js";
 import AuditLog from "../models/AuditLog.js";
 
 /**
@@ -23,7 +24,7 @@ export const submitExpenseService = async (user, projectId, expenseData) => {
 
         // 2. Auth & Status Check
         if (project.creatorId.toString() !== user._id.toString()) {
-            throw new Error("Only the project creator can submit expenses");
+            throw new Error("Only the project creator can submit expenses for this project.");
         }
         if (project.status !== "ACTIVE" && project.status !== "FUNDED" && project.status !== "IN_PRODUCTION") {
             throw new Error(`Project is not in a spending state (Status: ${project.status})`);
@@ -32,7 +33,7 @@ export const submitExpenseService = async (user, projectId, expenseData) => {
         // 3. Rule Validation
         const rule = project.fundUsageRules.find((r) => r.category === category);
         if (!rule) {
-            throw new Error(`Category '${category}' is not allowed for this project`);
+            throw new Error(`Category '${category}' is not allowed for this project. Allowed categories are: ${project.fundUsageRules.map(r => r.category).join(', ')}`);
         }
 
         if (amount > rule.maxAmount) {
@@ -43,15 +44,13 @@ export const submitExpenseService = async (user, projectId, expenseData) => {
             throw new Error(`Receipt is required for category '${category}'`);
         }
 
-        // 4. Wallet Balance Check (Optimistic check, real deduction happens on approval)
-        const wallet = await Wallet.findById(project.walletId).session(session);
-        if (!wallet) throw new Error("Wallet not found");
+        // 4. Wallet Balance Check (Creator's Personal Wallet)
+        if (!user.walletId) throw new Error("Creator does not have a linked wallet.");
+        const wallet = await Wallet.findById(user.walletId).session(session);
+        if (!wallet) throw new Error("Creator wallet not found");
 
-        // Calculate pending expenses to see if we are "overbooking"
-        // For MVP, we'll just check if current balance >= this amount.
-        // In strict mode, we might sum up all PENDING + APPROVED expenses.
         if (wallet.balance < amount) {
-            throw new Error("Insufficient funds in project wallet");
+            throw new Error(`Insufficient funds in your wallet. Available: ₹${wallet.balance}`);
         }
 
         // 5. Create Expense Record
@@ -65,6 +64,7 @@ export const submitExpenseService = async (user, projectId, expenseData) => {
                     description,
                     receiptUrl,
                     status: "PENDING",
+                    submittedBy: user._id,
                 },
             ],
             { session }
@@ -97,12 +97,9 @@ export const submitExpenseService = async (user, projectId, expenseData) => {
 
 /**
  * Approve or Reject an expense.
- * - Approval deducts from Wallet.
- * - Rejection just updates status.
+ * - Approval deducts from Project Wallet and ADDS to Submitter's Wallet (Reimbursement).
  */
 export const reviewExpenseService = async (user, expenseId, status, reason) => {
-    // Only ADMIN or Auditor can approve (Simulated for this hackathon, maybe Creator if self-governed?)
-    // Requirement says "Approval can be done by Admin / System".
     if (user.role !== "ADMIN") {
         throw new Error("Only Admins can review expenses");
     }
@@ -122,6 +119,9 @@ export const reviewExpenseService = async (user, expenseId, status, reason) => {
             throw new Error(`Expense is already ${expense.status}`);
         }
 
+        const project = await Project.findById(expense.projectId).session(session);
+        const projectWallet = await Wallet.findById(project.walletId).session(session);
+
         if (status === "REJECTED") {
             expense.status = "REJECTED";
             await expense.save({ session });
@@ -137,21 +137,25 @@ export const reviewExpenseService = async (user, expenseId, status, reason) => {
                 { session }
             );
         } else {
-            // APPROVE
-            // 1. Deduct from Wallet
+            // APPROVE logic - Creator Payout Deduction
             const project = await Project.findById(expense.projectId).session(session);
-            const wallet = await Wallet.findById(project.walletId).session(session);
-            if (wallet.isFrozen) throw new Error("Wallet is frozen. Cannot approve expenses.");
+            const creator = await User.findById(project.creatorId).session(session);
 
-            if (wallet.balance < expense.amount) {
-                throw new Error("Insufficient wallet balance for approval");
+            if (!creator.walletId) throw new Error("Creator wallet link missing");
+            const creatorWallet = await Wallet.findById(creator.walletId).session(session);
+
+            if (creatorWallet.isFrozen) throw new Error("Creator wallet is frozen. Cannot process approval.");
+
+            if (creatorWallet.balance < expense.amount) {
+                throw new Error("Insufficient creator wallet balance for approval. Creator might have withdrawn funds.");
             }
 
-            const oldBalance = wallet.balance;
-            wallet.balance -= expense.amount;
-            await wallet.save({ session });
+            // 1. Deduct from Creator Wallet
+            const oldBalance = creatorWallet.balance;
+            creatorWallet.balance -= expense.amount;
+            await creatorWallet.save({ session });
 
-            // 2. Update Expense
+            // 2. Update Expense Status
             expense.status = "APPROVED";
             expense.approvedBy = user._id;
             await expense.save({ session });
@@ -159,15 +163,15 @@ export const reviewExpenseService = async (user, expenseId, status, reason) => {
             // 3. Audit Log
             await AuditLog.create(
                 [{
-                    action: "APPROVE_EXPENSE",
+                    action: "APPROVE_EXPENSE_CREATOR_DEDUCTION",
                     actorId: user._id,
                     resourceId: expense._id,
                     resourceModel: "Expense",
                     details: {
-                        walletId: wallet._id,
+                        creatorWalletId: creatorWallet._id,
                         amount: expense.amount,
                         oldBalance,
-                        newBalance: wallet.balance,
+                        newBalance: creatorWallet.balance
                     },
                 }],
                 { session }
@@ -226,3 +230,16 @@ export const getExpenseByIdService = async (user, expenseId) => {
     // Check permissions...
     return expense;
 }
+/**
+ * Get all pending expenses (Admin View).
+ */
+export const getAllPendingExpensesService = async (user) => {
+    if (user.role !== "ADMIN") {
+        throw new Error("Only Admins can access all pending expenses");
+    }
+
+    return await Expense.find({ status: "PENDING" })
+        .populate("projectId", "title currentFunding")
+        .populate("submittedBy", "name email")
+        .sort({ createdAt: -1 });
+};

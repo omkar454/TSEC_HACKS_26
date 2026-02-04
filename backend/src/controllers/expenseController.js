@@ -34,3 +34,10 @@ export const getExpenseById = asyncHandler(async (req, res) => {
     const expense = await expenseService.getExpenseByIdService(req.user, req.params.id);
     res.json(expense);
 })
+// @desc    Get all pending expenses
+// @route   GET /api/expenses/pending
+// @access  Admin
+export const getPendingExpenses = asyncHandler(async (req, res) => {
+    const expenses = await expenseService.getAllPendingExpensesService(req.user);
+    res.json(expenses);
+});

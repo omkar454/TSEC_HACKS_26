@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LayoutDashboard, Megaphone, MonitorPlay, Wallet, User, LogOut, Sun, Moon, ShieldAlert } from 'lucide-react';
+import { LayoutDashboard, Megaphone, MonitorPlay, Wallet, User, LogOut, Sun, Moon, ShieldAlert, Receipt } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
@@ -48,11 +48,18 @@ const Sidebar = () => {
             link: '/profile',
         },
         // Admin Only
-        ...(user?.role === 'ADMIN' ? [{
-            name: 'settings',
-            imgUrl: ShieldAlert,
-            link: '/admin',
-        }] : []),
+        ...(user?.role === 'ADMIN' ? [
+            {
+                name: 'settings',
+                imgUrl: ShieldAlert,
+                link: '/admin',
+            },
+            {
+                name: 'expenses',
+                imgUrl: Receipt,
+                link: '/admin/expenses',
+            }
+        ] : []),
         {
             name: 'logout',
             imgUrl: LogOut,

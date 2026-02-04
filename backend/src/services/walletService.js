@@ -75,3 +75,25 @@ export const withdrawFundsService = async (userId, amount) => {
     await wallet.save();
     return wallet;
 };
+
+/**
+ * Get project wallet (Public Transparency).
+ */
+export const getProjectWalletService = async (projectId) => {
+    const wallet = await Wallet.findOne({ ownerId: projectId, ownerModel: "Project" });
+    if (!wallet) throw new Error("Project wallet not found");
+    return wallet;
+};
+
+/**
+ * Get Creator's wallet for a project (Public Transparency).
+ */
+export const getCreatorWalletByProjectIdService = async (projectId) => {
+    const project = await Project.findById(projectId);
+    if (!project) throw new Error("Project not found");
+
+    const creator = await User.findById(project.creatorId);
+    if (!creator || !creator.walletId) throw new Error("Creator wallet not found");
+
+    return await Wallet.findById(creator.walletId);
+};

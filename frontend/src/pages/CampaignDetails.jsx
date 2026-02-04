@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { Loader, Folder, User, ShieldCheck, PieChart, Lock, Info } from 'lucide-react'
+import { Loader, Folder, User, ShieldCheck, PieChart, Lock, Info, CheckCircle } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 // import { useAuth } from '../context/AuthContext'
 
 import CustomButton from '../components/CustomButton'
+import UploadBillForm from '../components/UploadBillForm'
 import { CAMPAIGN_STATES, EXPENSE_STATES } from '../constants'
 import api from '../utils/api'
 
@@ -20,7 +21,11 @@ const CampaignDetails = () => {
     // State for real data
     const [campaign, setCampaign] = useState(null);
     const [expenses, setExpenses] = useState([]);
+    const [contributions, setContributions] = useState([]);
+    const [revenues, setRevenues] = useState([]);
     const [userOwnership, setUserOwnership] = useState(0);
+    const [showExpenseForm, setShowExpenseForm] = useState(false);
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
 
     // Fetch Data
     useEffect(() => {
@@ -45,6 +50,7 @@ const CampaignDetails = () => {
                     fundsLocked: project.currentFunding,
                     userContribution: 0,
                     walletId: project.walletId,
+                    creatorId: project.creatorId?._id || project.creatorId,
                     _id: project._id
                 };
                 setCampaign(mappedProject);
@@ -56,8 +62,41 @@ const CampaignDetails = () => {
                     title: e.title,
                     amount: e.amount,
                     status: e.status, // "PENDING", "APPROVED", "REJECTED"
-                    receipt: e.receiptUrl || "No Receipt"
+                    category: e.category,
+                    date: new Date(e.createdAt).toLocaleDateString(),
+                    receipt: e.receiptUrl || "No Receipt",
                 })));
+
+                // 2.1 Fetch Creator Wallet Balance for "Available Funds" accuracy
+                try {
+                    const { data: creatorWallet } = await api.get(`/wallet/creator-of-project/${id}`);
+                    setCampaign(prev => ({ ...prev, fundsLocked: creatorWallet.balance }));
+                } catch (err) {
+                    console.error("Error fetching creator wallet:", err);
+                }
+
+                // 3. Fetch Contributions (Public Ledger)
+                const { data: contribList } = await api.get(`/finance/projects/${id}/contributions`);
+                setContributions(contribList);
+
+                // 4. Calculate Ownership using PRIVATE contributions endpoint
+                if (user && project.currentFunding > 0) {
+                    try {
+                        const { data: myContributions } = await api.get('/finance/my-contributions');
+                        const myTotalForThisProject = myContributions
+                            .filter(c => (c.projectId?._id === id || c.projectId === id) && c.status === 'COMPLETED')
+                            .reduce((acc, curr) => acc + curr.amount, 0);
+
+                        const pct = (myTotalForThisProject / project.currentFunding) * 100;
+                        setUserOwnership(pct.toFixed(2));
+                    } catch (err) {
+                        console.error("Error fetching my contributions for ownership:", err);
+                    }
+                }
+
+                // 5. Fetch Revenue
+                const { data: revenueList } = await api.get(`/revenue/project/${id}`);
+                setRevenues(revenueList);
 
             } catch (error) {
                 console.error("Error fetching campaign details:", error);
@@ -68,7 +107,7 @@ const CampaignDetails = () => {
         };
 
         if (id) fetchData();
-    }, [id]);
+    }, [id, refreshTrigger]);
 
     const handleFund = async () => {
         if (!amount) return;
@@ -204,120 +243,191 @@ const CampaignDetails = () => {
                             </div>
                         )}
 
-                        {activeTab === 'governance' && (
-                            <div className="flex flex-col gap-6">
-                                <h4 className="font-epilogue font-semibold text-[18px] text-[var(--text-primary)] uppercase">Community Governance</h4>
-                                <p className="text-[#808191] text-sm">Expenses must be approved by token holders. Your Vote Weight: <span className="text-[#8c6dfd] font-bold">{userOwnership}%</span></p>
+                        <div className="flex justify-between items-center mb-6">
+                            <h4 className="font-epilogue font-semibold text-[18px] text-[var(--text-primary)] uppercase">Governance & Expense Control</h4>
+                            {user?.id === campaign?.creatorId && (
+                                <CustomButton
+                                    btnType="button"
+                                    title={showExpenseForm ? "Close Form" : "Request Reimbursement (Submit Bill)"}
+                                    styles={`${showExpenseForm ? 'bg-[#3a3a43]' : 'bg-[#8c6dfd]'} py-2 px-4 shadow-lg hover:shadow-[#8c6dfd]/40`}
+                                    handleClick={() => setShowExpenseForm(!showExpenseForm)}
+                                />
+                            )}
+                        </div>
 
+                        {showExpenseForm && (
+                            <div className="mb-10">
+                                <UploadBillForm
+                                    projectId={id}
+                                    onClose={() => setShowExpenseForm(false)}
+                                    onSuccess={() => {
+                                        setShowExpenseForm(false);
+                                        setRefreshTrigger(prev => prev + 1);
+                                    }}
+                                />
+                            </div>
+                        )}
+
+                        <div className="flex flex-col gap-6">
+                            <p className="text-[#808191] text-sm">Expenses must be approved by token holders (or Goverance Council). Your Vote Weight: <span className="text-[#4acd8d] font-bold">{userOwnership}%</span></p>
+
+                            <div className="flex flex-col gap-4">
                                 {expenses.length === 0 ? (
-                                    <div className="p-8 text-center border-2 border-dashed border-[#3a3a43] rounded-[10px] text-[#808191]">
-                                        <p>No active expenses yet.</p>
-                                        <p className="text-xs mt-2">Expenses will appear here once the campaign enters the Voting phase.</p>
+                                    <div className="p-10 text-center border-2 border-dashed border-[#3a3a43] rounded-[15px] opacity-50">
+                                        <Info className="mx-auto mb-2 text-[#808191]" />
+                                        <p className="text-[#808191]">No active expense requests for this project.</p>
                                     </div>
                                 ) : (
                                     expenses.map((expense) => (
-                                        <div key={expense.id} className="bg-[var(--secondary)] p-6 rounded-[10px] border border-[#3a3a43]">
+                                        <div key={expense.id} className="bg-[var(--secondary)] p-6 rounded-[15px] border border-[#3a3a43] group hover:border-[#8c6dfd]/50 transition-all">
                                             <div className="flex justify-between items-start mb-4">
                                                 <div>
                                                     <h5 className="text-[var(--text-primary)] font-bold text-lg">{expense.title}</h5>
-                                                    <p className="text-[#808191] text-sm">Receipt: <span className="text-[#4acd8d] underline cursor-pointer">{expense.receipt}</span></p>
-                                                </div>
-                                                <span
-                                                    title={expense.status === EXPENSE_STATES.APPROVED ? "Approved by contributor vote. Funds released." : "Waiting for community consensus."}
-                                                    className={`px-3 py-1 rounded-full text-xs font-bold cursor-help ${expense.status === EXPENSE_STATES.APPROVED ? 'bg-[#4acd8d]/20 text-[#4acd8d]' : 'bg-[#eab308]/20 text-[#eab308]'}`}
-                                                >
-                                                    {expense.status}
-                                                </span>
-                                            </div>
-
-                                            <div className="flex justify-between items-center mb-2">
-                                                <span className="text-[var(--text-primary)] font-mono font-bold">₹ {expense.amount.toLocaleString()}</span>
-                                                <span className="text-[#808191] text-xs">Quorum: 30% Required</span>
-                                            </div>
-
-                                            {/* Voting Bars */}
-                                            <div className="flex flex-col gap-2 mb-4">
-                                                <div className="flex items-center gap-2 text-xs text-[#808191]">
-                                                    <span>Approve ({expense.approvalWeight}%)</span>
-                                                    <div className="flex-1 h-2 bg-[#3a3a43] rounded-full overflow-hidden">
-                                                        <div className="h-full bg-[#4acd8d]" style={{ width: `${expense.approvalWeight}%` }}></div>
+                                                    <div className="flex items-center gap-2 mt-1">
+                                                        <span className="text-xs text-[#808191] bg-[#1c1c24] px-2 py-0.5 rounded border border-[#3a3a43]">{expense.category}</span>
+                                                        <span className="text-[#808191] text-[10px]">Submitted {expense.date || 'recently'}</span>
                                                     </div>
                                                 </div>
-                                                <div className="flex items-center gap-2 text-xs text-[#808191]">
-                                                    <span>Reject ({expense.rejectedWeight}%)</span>
-                                                    <div className="flex-1 h-2 bg-[#3a3a43] rounded-full overflow-hidden">
-                                                        <div className="h-full bg-[#ef4444]" style={{ width: `${expense.rejectedWeight}%` }}></div>
-                                                    </div>
-                                                </div>
-
-                                                {/* Quorum Indicator */}
-                                                <div className="flex justify-between items-center mt-3 pt-2 border-t border-white/5">
-                                                    <p className="text-[10px] text-[#808191]">
-                                                        <span className="text-[#8c6dfd] font-bold">{expense.approvalWeight + expense.rejectedWeight}%</span> Voted
-                                                        <span className="mx-1">·</span>
-                                                        Min 30% Quorum
-                                                    </p>
-                                                    {expense.approvalWeight + expense.rejectedWeight < 30 && (
-                                                        <span className="text-[10px] text-yellow-500 flex items-center gap-1">
-                                                            ⚠️ Quorum Pending
-                                                        </span>
-                                                    )}
+                                                <div className="flex flex-col items-end gap-2">
+                                                    <span className={`text-[10px] px-3 py-1 rounded-full font-bold tracking-wider uppercase ${expense.status === 'APPROVED' ? 'bg-[#4acd8d]/20 text-[#4acd8d]' :
+                                                        expense.status === 'REJECTED' ? 'bg-red-500/20 text-red-500' :
+                                                            'bg-yellow-500/20 text-yellow-500'
+                                                        }`}>
+                                                        {expense.status}
+                                                    </span>
                                                 </div>
                                             </div>
 
-                                            {/* Actions (Admin Only for MVP) */}
-                                            {expense.status === 'PENDING' && (user?.role === 'ADMIN') && (
-                                                <div className="flex gap-4 mt-4">
+                                            <div className="flex justify-between items-center mb-4 pt-4 border-t border-[#3a3a43]">
+                                                <span className="text-[var(--text-primary)] font-mono font-bold text-xl">₹ {expense.amount.toLocaleString()}</span>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xs text-[#808191]">Receipt:</span>
+                                                    <a href={expense.receipt} target="_blank" rel="noreferrer" className="text-[#8c6dfd] text-xs hover:underline flex items-center gap-1">
+                                                        View Bill <Info size={12} />
+                                                    </a>
+                                                </div>
+                                            </div>
+
+                                            {/* Admin Actions */}
+                                            {expense.status === 'PENDING' && user?.role === 'ADMIN' && (
+                                                <div className="flex gap-4 mt-6">
                                                     <button
                                                         onClick={() => handleVote(expense.id, 'approve')}
-                                                        className="flex-1 py-2 bg-[#4acd8d]/10 text-[#4acd8d] border border-[#4acd8d] rounded hover:bg-[#4acd8d] hover:text-white transition-all font-semibold text-sm"
+                                                        className="flex-1 py-3 bg-[#4acd8d] text-primary font-bold rounded-xl hover:opacity-90 transition-all shadow-lg shadow-[#4acd8d]/20"
                                                     >
-                                                        Approve Request
+                                                        Approve & Pay
                                                     </button>
                                                     <button
                                                         onClick={() => handleVote(expense.id, 'reject')}
-                                                        className="flex-1 py-2 bg-[#ef4444]/10 text-[#ef4444] border border-[#ef4444] rounded hover:bg-[#ef4444] hover:text-white transition-all font-semibold text-sm"
+                                                        className="flex-1 py-3 bg-red-500 text-white font-bold rounded-xl hover:opacity-90 transition-all shadow-lg shadow-red-500/20"
                                                     >
-                                                        Reject Request
+                                                        Reject
                                                     </button>
                                                 </div>
                                             )}
 
-                                            {/* Contributor Message */}
                                             {expense.status === 'PENDING' && user?.role !== 'ADMIN' && (
-                                                <p className="text-xs text-[#808191] mt-2 italic">Waiting for Governance Council (Admin) approval.</p>
+                                                <div className="mt-4 p-3 bg-yellow-500/5 rounded-lg border border-yellow-500/20">
+                                                    <p className="text-[10px] text-yellow-500 text-center italic">
+                                                        ⏳ Pending Governance Verification (Council Approval)
+                                                    </p>
+                                                </div>
                                             )}
                                         </div>
                                     ))
                                 )}
                             </div>
-                        )}
+                        </div>
 
                         {activeTab === 'transparency' && (
-                            <div className="flex flex-col gap-4">
-                                <h4 className="font-epilogue font-semibold text-[18px] text-[var(--text-primary)] uppercase">Immutable Ledger</h4>
-                                <div className="bg-[var(--secondary)] p-4 rounded-[10px] border border-[#3a3a43]">
-                                    <div className="flex justify-between p-2 border-b border-[#3a3a43] text-[#808191] text-sm">
-                                        <span>Item</span>
-                                        <span>Status</span>
-                                        <span>Amount</span>
+                            <div className="flex flex-col gap-8">
+                                {/* Contributions Ledger */}
+                                <div>
+                                    <h4 className="font-epilogue font-semibold text-[18px] text-[var(--text-primary)] uppercase mb-4">Contribution Ledger</h4>
+                                    <div className="bg-[var(--secondary)] p-4 rounded-[10px] border border-[#3a3a43] overflow-x-auto">
+                                        <table className="w-full text-sm text-left text-gray-400">
+                                            <thead className="text-xs text-gray-700 uppercase bg-[#1c1c24] text-[#808191]">
+                                                <tr>
+                                                    <th className="px-4 py-3 rounded-tl-lg">Date</th>
+                                                    <th className="px-4 py-3">Contributor</th>
+                                                    <th className="px-4 py-3">Amount</th>
+                                                    <th className="px-4 py-3 rounded-tr-lg">Status</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {contributions.length === 0 ? (
+                                                    <tr>
+                                                        <td colSpan="4" className="px-4 py-6 text-center italic">No contributions yet. Be the first!</td>
+                                                    </tr>
+                                                ) : (
+                                                    contributions.map((tx, idx) => (
+                                                        <tr key={idx} className="border-b border-[#3a3a43] hover:bg-[#2c2f32]">
+                                                            <td className="px-4 py-3">{new Date(tx.date).toLocaleDateString()}</td>
+                                                            <td className="px-4 py-3 font-mono text-[#8c6dfd]">
+                                                                {tx.contributorName}
+                                                            </td>
+                                                            <td className="px-4 py-3 text-white">₹ {tx.amount.toLocaleString()}</td>
+                                                            <td className="px-4 py-3 text-[#4acd8d]">
+                                                                COMPLETED
+                                                            </td>
+                                                        </tr>
+                                                    ))
+                                                )}
+                                            </tbody>
+                                        </table>
                                     </div>
-                                    {expenses.map(exp => (
-                                        <div key={exp.id} className="flex justify-between p-3 text-[var(--text-primary)] text-sm">
-                                            <span>{exp.title}</span>
-                                            <span>{exp.status}</span>
-                                            <span className="font-mono">₹ {exp.amount.toLocaleString()}</span>
+                                </div>
+
+                                {/* Revenue Ledger */}
+                                <div>
+                                    <h4 className="font-epilogue font-semibold text-[18px] text-[var(--text-primary)] uppercase mb-4">Revenue & Payouts</h4>
+                                    <div className="bg-[var(--secondary)] p-4 rounded-[10px] border border-[#3a3a43] overflow-x-auto">
+                                        <table className="w-full text-sm text-left text-gray-400">
+                                            <thead className="text-xs text-gray-700 uppercase bg-[#1c1c24] text-[#808191]">
+                                                <tr>
+                                                    <th className="px-4 py-3 rounded-tl-lg">Date</th>
+                                                    <th className="px-4 py-3">Source</th>
+                                                    <th className="px-4 py-3">Total Earned</th>
+                                                    <th className="px-4 py-3 rounded-tr-lg">Distribution Status</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {revenues.length === 0 ? (
+                                                    <tr>
+                                                        <td colSpan="4" className="px-4 py-6 text-center italic">No revenue reported yet.</td>
+                                                    </tr>
+                                                ) : (
+                                                    revenues.map((rev, idx) => (
+                                                        <tr key={idx} className="border-b border-[#3a3a43] hover:bg-[#2c2f32]">
+                                                            <td className="px-4 py-3">{new Date(rev.createdAt).toLocaleDateString()}</td>
+                                                            <td className="px-4 py-3 text-white">{rev.source}</td>
+                                                            <td className="px-4 py-3 text-[#4acd8d] font-bold">₹ {rev.amount.toLocaleString()}</td>
+                                                            <td className="px-4 py-3">
+                                                                {rev.status === 'DISTRIBUTED' ? (
+                                                                    <span className="flex items-center gap-1 text-[#4acd8d]">
+                                                                        <CheckCircle size={14} /> Distributed
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="text-yellow-500">Pending</span>
+                                                                )}
+                                                            </td>
+                                                        </tr>
+                                                    ))
+                                                )}
+                                            </tbody>
+                                        </table>
+                                        <div className="mt-4 p-4 bg-[#8c6dfd]/10 rounded border border-[#8c6dfd]/30">
+                                            <p className="text-sm text-[#808191]">
+                                                <span className="text-white font-bold">Your Returns: </span>
+                                                Based on your <span className="text-[#8c6dfd] font-bold">{userOwnership}%</span> ownership, you receive a proportional share of every "Distributed" revenue event directly to your wallet.
+                                            </p>
                                         </div>
-                                    ))}
-                                    <div className="flex justify-between p-3 text-[#4acd8d] font-bold text-sm border-t border-[#3a3a43] mt-2">
-                                        <span>Funds Released</span>
-                                        <span></span>
-                                        <span>₹ 10,000</span>
                                     </div>
                                 </div>
                             </div>
                         )}
                     </div>
+
                 </div>
 
                 {/* Right Column: Financial Panel */}
@@ -328,7 +438,7 @@ const CampaignDetails = () => {
                         <div className="flex items-center gap-3 mb-4">
                             <Lock className="text-[#8c6dfd]" size={24} />
                             <div>
-                                <p className="text-[#808191] text-xs uppercase font-bold">Funds Locked in Contract</p>
+                                <p className="text-[#808191] text-xs uppercase font-bold">Available Creator Budget</p>
                                 <p className="text-2xl font-bold text-[var(--text-primary)]">₹ {campaign.fundsLocked.toLocaleString()}</p>
                             </div>
                         </div>

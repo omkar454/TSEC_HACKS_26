@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Plus, Upload, CheckCircle, Clock, AlertCircle, RefreshCw, Coins } from 'lucide-react'
 import CustomButton from '../components/CustomButton'
 import FormField from '../components/FormField'
+import UploadBillForm from '../components/UploadBillForm'
 import api from '../utils/api'
 
 const CreatorDashboard = () => {
@@ -285,90 +286,6 @@ const CreatorDashboard = () => {
     )
 }
 
-const UploadBillForm = ({ projectId, onClose, onSuccess }) => {
-    const [isLoading, setIsLoading] = useState(false);
-    const [form, setForm] = useState({
-        description: '',
-        amount: '',
-        category: 'Equipment', // Default
-        receiptUrl: 'https://example.com/invoice.pdf' // Mock for MVP
-    });
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setIsLoading(true);
-        try {
-            await api.post('/expenses', {
-                projectId,
-                title: form.description,
-                amount: parseFloat(form.amount),
-                category: form.category,
-                description: form.description,
-                receiptUrl: form.receiptUrl
-            });
-            alert("Expense Submitted!");
-            onSuccess();
-        } catch (error) {
-            console.error(error);
-            alert("Failed to submit expense: " + error.response?.data?.message);
-        } finally {
-            setIsLoading(false);
-        }
-    }
-
-    return (
-        <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
-            <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-bold">New Expense Request</h3>
-                <button onClick={onClose} className="text-[#808191] hover:text-white">Cancel</button>
-            </div>
-
-            <form onSubmit={handleSubmit} className="flex flex-col gap-6 max-w-[600px]">
-                <FormField
-                    labelName="Expense Description"
-                    placeholder="e.g. Venue Booking for Shoot"
-                    inputType="text"
-                    value={form.description}
-                    handleChange={(e) => setForm({ ...form, description: e.target.value })}
-                />
-                <FormField
-                    labelName="Amount (₹)"
-                    placeholder="5000"
-                    inputType="number"
-                    value={form.amount}
-                    handleChange={(e) => setForm({ ...form, amount: e.target.value })}
-                />
-
-                <div className="flex flex-col gap-2">
-                    <span className="font-epilogue font-medium text-[14px] text-[#808191]">Category</span>
-                    <select
-                        className="py-[15px] px-[25px] outline-none border-[1px] border-[#3a3a43] bg-transparent font-epilogue text-[var(--text-primary)] text-[14px] rounded-[10px]"
-                        value={form.category}
-                        onChange={(e) => setForm({ ...form, category: e.target.value })}
-                    >
-                        <option value="Equipment" className="bg-[#1c1c24]">Equipment</option>
-                        <option value="Logistics" className="bg-[#1c1c24]">Logistics</option>
-                        <option value="Talent" className="bg-[#1c1c24]">Talent</option>
-                        <option value="Marketing" className="bg-[#1c1c24]">Marketing</option>
-                    </select>
-                </div>
-
-                <div className="flex flex-col gap-2">
-                    <span className="font-epilogue font-medium text-[14px] text-[#808191]">Scan Bill / Receipt</span>
-                    <div className="border-2 border-dashed border-[#3a3a43] rounded-[10px] h-[150px] flex flex-col items-center justify-center cursor-pointer hover:border-[#8c6dfd] transition-colors">
-                        <Upload className="text-[#808191] mb-2" />
-                        <span className="text-[#808191] text-sm">Drag or click to upload (Simulated)</span>
-                    </div>
-                </div>
-
-                <CustomButton
-                    btnType="submit"
-                    title={isLoading ? "Submitting..." : "Submit for Verification"}
-                    styles="bg-[#4acd8d]"
-                />
-            </form>
-        </div>
-    )
-}
 
 export default CreatorDashboard

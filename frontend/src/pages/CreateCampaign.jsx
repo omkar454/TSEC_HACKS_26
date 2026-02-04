@@ -1,23 +1,53 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader, Rocket, DollarSign, Image as ImageIcon, Type } from 'lucide-react';
+import { Loader, Rocket, DollarSign, Image as ImageIcon, Type, AlertCircle } from 'lucide-react';
 
+import { useAuth } from '../context/AuthContext';
 import CustomButton from '../components/CustomButton';
 import FormField from '../components/FormField';
 import api from '../utils/api';
 
 const CreateCampaign = () => {
     const navigate = useNavigate();
+    const { user } = useAuth();
     const [isLoading, setIsLoading] = useState(false);
     const [form, setForm] = useState({
-        name: '',
+        name: user?.name || '',
         title: '',
         description: '',
         target: '',
         deadline: '',
         image: '',
-        category: 'Education'
+        category: 'OTHER'
     });
+
+    const categories = ["FILM", "DOCUMENTARY", "PODCAST", "MUSIC", "OTHER"];
+
+    // Role Guard
+    if (user?.role !== 'CREATOR') {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-6 bg-[#1c1c24] rounded-[20px] border border-[#3a3a43]">
+                <AlertCircle className="w-16 h-16 text-yellow-500 mb-4" />
+                <h2 className="text-white text-2xl font-bold mb-2">Access Restricted</h2>
+                <p className="text-[#808191] max-w-[400px]">
+                    Only registered **Creators** can launch new campaigns. Your current role is **{user?.role || 'Guest'}**.
+                </p>
+                <div className="mt-6 flex gap-4">
+                    <CustomButton
+                        btnType="button"
+                        title="Go Home"
+                        styles="bg-[#1dc071]"
+                        handleClick={() => navigate('/')}
+                    />
+                    {user && (
+                        <p className="text-xs text-[#4b5264] mt-4 block w-full">
+                            Contact Admin to upgrade your role if you are a content creator.
+                        </p>
+                    )}
+                </div>
+            </div>
+        );
+    }
 
     const handleFormFieldChange = (fieldName, e) => {
         setForm({ ...form, [fieldName]: e.target.value })
@@ -205,13 +235,20 @@ const CreateCampaign = () => {
                             />
                         </div>
 
-                        <FormField
-                            labelName="Category"
-                            placeholder="e.g. Governance, Tech, Art"
-                            inputType="text"
-                            value={form.category}
-                            handleChange={(e) => handleFormFieldChange('category', e)}
-                        />
+                        <div className="flex flex-col gap-2">
+                            <span className="font-epilogue font-medium text-[14px] leading-[22px] text-[#808191] mb-[10px]">Category</span>
+                            <select
+                                value={form.category}
+                                onChange={(e) => handleFormFieldChange('category', e)}
+                                className="py-[15px] sm:px-[25px] px-[15px] outline-none border-[1px] border-[#3a3a43] bg-[#13131a] font-epilogue text-white text-[14px] rounded-[10px] focus:border-[#8c6dfd] transition-colors"
+                            >
+                                {categories.map((cat) => (
+                                    <option key={cat} value={cat} className="bg-[#1c1c24]">
+                                        {cat}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
                     </div>
                 </div>
 

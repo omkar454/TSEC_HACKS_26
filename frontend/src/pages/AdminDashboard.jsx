@@ -139,7 +139,6 @@ const AdminDashboard = () => {
                         ))}
                     </div>
 
-
                     {/* ACTIVE PROJECTS SECTION */}
                     <h4 className="text-[#808191] text-sm uppercase font-bold mt-4 mb-2">Active & Monitored Projects</h4>
                     <div className="flex flex-col gap-3">

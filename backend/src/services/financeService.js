@@ -47,13 +47,16 @@ export const contributeToProjectService = async (user, projectId, amount, curren
         status: "COMPLETED",
     });
 
-    // 3. Update Project Wallet (Pool Funds)
-    const projectWallet = await Wallet.findById(project.walletId);
-    if (!projectWallet) throw new Error("Project wallet not found");
-    if (projectWallet.isFrozen) throw new Error("Project wallet is frozen. Cannot accept contributions.");
+    // 3. Update Creator's Wallet (Direct Payout)
+    const creator = await User.findById(project.creatorId);
+    if (!creator || !creator.walletId) throw new Error("Creator does not have a linked wallet to receive funds.");
 
-    projectWallet.balance += amount;
-    await projectWallet.save();
+    const creatorWallet = await Wallet.findById(creator.walletId);
+    if (!creatorWallet) throw new Error("Creator wallet not found");
+    if (creatorWallet.isFrozen) throw new Error("Creator wallet is frozen. Cannot accept contributions.");
+
+    creatorWallet.balance += amount;
+    await creatorWallet.save();
 
     // 4. Update Project Funding Status
     project.currentFunding += amount;
@@ -73,8 +76,8 @@ export const contributeToProjectService = async (user, projectId, amount, curren
         details: {
             amount,
             currency,
-            userWalletId: userWallet._id,
-            projectWalletId: projectWallet._id,
+            contributorWalletId: userWallet._id,
+            creatorWalletId: creatorWallet._id,
             paymentHash,
         },
     });

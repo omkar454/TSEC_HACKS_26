@@ -11,6 +11,7 @@ import CreatorDashboard from './pages/CreatorDashboard';
 import Profile from './pages/Profile';
 import Wallet from './pages/Wallet';
 import AdminDashboard from './pages/AdminDashboard';
+import AdminExpenses from './pages/AdminExpenses';
 import { useAuth } from './context/AuthContext';
 
 const App = () => {
@@ -33,6 +34,7 @@ const App = () => {
           <Route path="/dashboard" element={user ? <CreatorDashboard /> : <Navigate to="/login" />} />
           <Route path="/profile" element={user ? <Profile /> : <Navigate to="/login" />} />
           <Route path="/admin" element={user && user.role === 'ADMIN' ? <AdminDashboard /> : (user ? <Navigate to="/" /> : <Navigate to="/login" />)} />
+          <Route path="/admin/expenses" element={user && user.role === 'ADMIN' ? <AdminExpenses /> : (user ? <Navigate to="/" /> : <Navigate to="/login" />)} />
           <Route path="/wallet" element={user ? <Wallet /> : <Navigate to="/login" />} />
           <Route path="/campaign-details/:id" element={<CampaignDetails />} />
         </Routes>

@@ -31,6 +31,11 @@ const expenseSchema = new mongoose.Schema(
             enum: ["PENDING", "APPROVED", "REJECTED", "PAID"],
             default: "PENDING",
         },
+        submittedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+            required: true,
+        },
         approvedBy: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User", // Admin or Auditor who approved it

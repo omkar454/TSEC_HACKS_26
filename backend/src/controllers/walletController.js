@@ -38,3 +38,18 @@ export const withdrawFunds = asyncHandler(async (req, res) => {
     const wallet = await walletService.withdrawFundsService(req.user._id, amount);
     res.json(wallet);
 });
+// @desc    Get project wallet
+// @route   GET /api/wallet/project/:id
+// @access  Private
+export const getProjectWallet = asyncHandler(async (req, res) => {
+    const wallet = await walletService.getProjectWalletService(req.params.id);
+    res.json(wallet);
+});
+
+// @desc    Get creator wallet for a project
+// @route   GET /api/wallet/creator-of-project/:id
+// @access  Private
+export const getCreatorWalletByProjectId = asyncHandler(async (req, res) => {
+    const wallet = await walletService.getCreatorWalletByProjectIdService(req.params.id);
+    res.json(wallet);
+});

@@ -3,12 +3,21 @@ import Wallet from "../models/Wallet.js";
 import AuditLog from "../models/AuditLog.js";
 
 export const createProjectService = async (user, projectData) => {
+    const { title, description, category, fundingGoal, deadline, milestones } = projectData;
+
+    if (!deadline) throw new Error("Project must have a deadline.");
+
     // 1. Create the project
     const project = new Project({
-        ...projectData,
+        title,
+        description,
+        category,
+        fundingGoal,
+        deadline: new Date(deadline),
+        milestones: milestones || [], // Initialize milestones if provided
         creatorId: user._id,
         currentFunding: 0,
-        status: "DRAFT",
+        status: "ACTIVE", // Start as ACTIVE for now, or DRAFT if requires approval
     });
 
     // 2. Create a Wallet for the project (Fund Pool)
@@ -93,4 +102,34 @@ export const deleteProjectService = async (user, projectId) => {
     });
 
     return { success: true };
+};
+export const submitMilestoneService = async (user, projectId, milestoneId, submissionUrl) => {
+    const project = await Project.findById(projectId);
+    if (!project) throw new Error("Project not found");
+
+    if (project.creatorId.toString() !== user._id.toString()) {
+        throw new Error("Only the creator can submit milestones.");
+    }
+
+    const milestone = project.milestones.id(milestoneId);
+    if (!milestone) throw new Error("Milestone not found");
+
+    if (milestone.status === "APPROVED") {
+        throw new Error("Cannot resubmit an approved milestone.");
+    }
+
+    milestone.status = "SUBMITTED";
+    milestone.submissionUrl = submissionUrl;
+
+    await project.save();
+
+    await AuditLog.create({
+        action: "MILESTONE_SUBMITTED",
+        actorId: user._id,
+        resourceId: project._id,
+        resourceModel: "Project",
+        details: { milestoneId, milestoneTitle: milestone.title, submissionUrl },
+    });
+
+    return project;
 };

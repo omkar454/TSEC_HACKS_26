@@ -39,6 +39,11 @@ export const getProjectContributions = asyncHandler(async (req, res) => {
 export const getMyContributions = asyncHandler(async (req, res) => {
     const list = await financeService.getUserContributionsService(req.user._id);
     res.json(list);
+});// @desc    Release tranche for a milestone
+// @route   POST /api/finance/projects/:projectId/milestones/:milestoneId/release
+// @access  Admin
+export const releaseTranche = asyncHandler(async (req, res) => {
+    const { projectId, milestoneId } = req.params;
+    const result = await financeService.releaseTrancheService(req.user, projectId, milestoneId);
+    res.json(result);
 });
-
-

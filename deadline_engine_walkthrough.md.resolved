@@ -1,0 +1,59 @@
+# Trust Engine: Deadline & Refund Architecture
+
+The **Trust Engine** is a background autonomous system that ensures platform integrity without human intervention. It ensures that projects either succeed safely or return contributor funds automatically.
+
+---
+
+## 1. The Components
+
+### ⚙️ The Trust Worker ([trustWorker.js](file:///c:/Users/Omkar%20Raut/OneDrive/Desktop/TSEC_Hacks_26/backend/src/utils/trustWorker.js))
+This is a background process (a "cron job" equivalent) that wakes up every 2 minutes. It scans the database for any project whose **Deadline** has passed.
+
+### 💰 The Finance Service ([financeService.js](file:///c:/Users/Omkar%20Raut/OneDrive/Desktop/TSEC_Hacks_26/backend/src/services/financeService.js))
+Contains the "Nuclear Option" — [refundProjectService](file:///c:/Users/Omkar%20Raut/OneDrive/Desktop/TSEC_Hacks_26/backend/src/services/financeService.js#144-226). This function is capable of returning every single rupee from a project's escrow wallet back to the individual contributor wallets in one atomic operation.
+
+### 🛡️ The Seed Tier Rule
+Every project has a **30% Seed Tier**. This is the safety threshold.
+- **Fail**: If a project is at 29.9% at the deadline, it is treated as a total failure.
+- **Success**: If it hits 30%, the system allows it to proceed (funding stays locked/tranches begin).
+
+---
+
+## 2. The Logic Flow (The "Kill-Switch")
+
+```mermaid
+graph TD
+    A[Trust Worker Starts] --> B{Any Projects Expired?}
+    B -- No --> C[Sleep 2 mins]
+    B -- Yes --> D{Reached 30% Seed Tier?}
+    
+    D -- No --> E[TRIGGER AUTO-REFUND]
+    E --> F[Move Status: CANCELLED]
+    F --> G[Log Security Audit]
+    
+    D -- Yes --> H[MARK AS FUNDED]
+    H --> I[Unlock Milestone Tranches]
+    I --> G
+```
+
+### Phase A: Monitoring
+The worker looks for `status: "ACTIVE"` AND `deadline < now`.
+
+### Phase B: The Decision
+- **If < 30%**: The system assumes the project is no longer viable. It triggers [refundProjectService(projectId)](file:///c:/Users/Omkar%20Raut/OneDrive/Desktop/TSEC_Hacks_26/backend/src/services/financeService.js#144-226).
+- **If >= 30%**: The system marks it as `FUNDED`. The project continues, but the creator can now only get money by hitting their milestones.
+
+### Phase C: Atomic Refunds
+When [refundProjectService](file:///c:/Users/Omkar%20Raut/OneDrive/Desktop/TSEC_Hacks_26/backend/src/services/financeService.js#144-226) runs:
+1. It finds all **Completed Contributions** for that project.
+2. For each contributor:
+    - Reverts the contribution status to `REFUNDED`.
+    - **Adds** the money back to the contributor's `balance`.
+3. The **Project Wallet** (Escrow) is emptied.
+
+---
+
+## 3. Why it's Secure
+- **Fixed Deadlines**: Once set, deadlines can only be changed via **Governance Voting**. Creators cannot manually move the goalposts.
+- **Atomic Operations**: Refund logic uses industry-standard checks to ensure no money is "lost" or double-counted.
+- **Autonomous**: No platform admin needs to click "Approve Refund". The system executes it the moment the clock hits zero.

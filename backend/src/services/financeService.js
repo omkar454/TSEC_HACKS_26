@@ -47,19 +47,26 @@ export const contributeToProjectService = async (user, projectId, amount, curren
         status: "COMPLETED",
     });
 
-    // 3. Update Creator's Wallet (Direct Payout)
-    const creator = await User.findById(project.creatorId);
-    if (!creator || !creator.walletId) throw new Error("Creator does not have a linked wallet to receive funds.");
+    // 3. Update Project's Wallet (Escrow)
+    if (!project.walletId) {
+        throw new Error("Project does not have an associated wallet. This is a critical system error.");
+    }
 
-    const creatorWallet = await Wallet.findById(creator.walletId);
-    if (!creatorWallet) throw new Error("Creator wallet not found");
-    if (creatorWallet.isFrozen) throw new Error("Creator wallet is frozen. Cannot accept contributions.");
+    const projectWallet = await Wallet.findById(project.walletId);
+    if (!projectWallet) throw new Error("Project wallet not found");
+    if (projectWallet.isFrozen) throw new Error("Project wallet is frozen. Cannot accept contributions.");
 
-    creatorWallet.balance += amount;
-    await creatorWallet.save();
+    projectWallet.balance += amount;
+    await projectWallet.save();
 
     // 4. Update Project Funding Status
     project.currentFunding += amount;
+
+    // Check Tiers
+    const fundingPercent = (project.currentFunding / project.fundingGoal) * 100;
+    if (fundingPercent >= 30) project.tiers.seedMet = true;
+    if (fundingPercent >= 70) project.tiers.productionMet = true;
+    if (fundingPercent >= 100) project.tiers.successMet = true;
 
     // Auto-update status if goal met
     if (project.currentFunding >= project.fundingGoal && project.status === "ACTIVE") {
@@ -77,7 +84,7 @@ export const contributeToProjectService = async (user, projectId, amount, curren
             amount,
             currency,
             contributorWalletId: userWallet._id,
-            creatorWalletId: creatorWallet._id,
+            projectWalletId: projectWallet._id,
             paymentHash,
         },
     });
@@ -133,4 +140,156 @@ export const getUserContributionsService = async (userId) => {
 /**
  * Create a wallet for a user if it doesn't exist.
  */
+
+/**
+ * Atomic Refund Engine
+ * Iterates through all completed contributions and returns funds to contributor wallets.
+ */
+export const refundProjectService = async (projectId, adminReason = "Project cancelled or deadline expired without meeting seed tier.") => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+        const project = await Project.findById(projectId).session(session);
+        if (!project) throw new Error("Project not found");
+
+        const projectWallet = await Wallet.findById(project.walletId).session(session);
+        if (!projectWallet) throw new Error("Project wallet not found");
+
+        const contributions = await Contribution.find({
+            projectId: project._id,
+            status: "COMPLETED"
+        }).session(session);
+
+        let totalRefunded = 0;
+
+        for (const cont of contributions) {
+            const userWallet = await Wallet.findOne({ ownerId: cont.contributorId, ownerModel: "User" }).session(session);
+
+            if (userWallet) {
+                userWallet.balance += cont.amount;
+                await userWallet.save({ session });
+
+                cont.status = "REFUNDED";
+                await cont.save({ session });
+
+                totalRefunded += cont.amount;
+
+                // Log per-user refund
+                await AuditLog.create([{
+                    action: "REFUND",
+                    actorId: project.creatorId, // System automation on behalf of project
+                    resourceId: cont._id,
+                    resourceModel: "Contribution",
+                    details: {
+                        projectId: project._id,
+                        amount: cont.amount,
+                        userId: cont.contributorId,
+                        reason: adminReason
+                    }
+                }], { session });
+            }
+        }
+
+        // Deduct from Project Wallet
+        projectWallet.balance -= totalRefunded;
+        await projectWallet.save({ session });
+
+        // Update Project Status
+        project.status = "CANCELLED";
+        await project.save({ session });
+
+        // Global Governance Log
+        await AuditLog.create([{
+            action: "PROJECT_AUTO_REFUND_COMPLETE",
+            actorId: project.creatorId,
+            resourceId: project._id,
+            resourceModel: "Project",
+            details: {
+                totalRefunded,
+                contributorCount: contributions.length,
+                reason: adminReason
+            }
+        }], { session });
+
+        await session.commitTransaction();
+        return { totalRefunded, count: contributions.length };
+
+    } catch (error) {
+        await session.abortTransaction();
+        console.error("Refund Engine Failure:", error);
+        throw error;
+    } finally {
+        session.endSession();
+    }
+};
+
+/**
+ * Milestone-based Tranche Release
+ * Releases a percentage of funds from Project Escrow to Creator Wallet upon milestone approval.
+ */
+export const releaseTrancheService = async (adminUser, projectId, milestoneId) => {
+    if (adminUser.role !== "ADMIN") throw new Error("Unauthorized: Only Admins can release tranches.");
+
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+        const project = await Project.findById(projectId).session(session);
+        if (!project) throw new Error("Project not found");
+
+        const milestone = project.milestones.id(milestoneId);
+        if (!milestone) throw new Error("Milestone not found");
+        if (milestone.status === "APPROVED") throw new Error("Milestone already approved and funds released.");
+
+        const projectWallet = await Wallet.findById(project.walletId).session(session);
+        if (!projectWallet) throw new Error("Project wallet not found");
+
+        const creator = await User.findById(project.creatorId).session(session);
+        if (!creator || !creator.walletId) throw new Error("Creator wallet not linked");
+
+        const creatorWallet = await Wallet.findById(creator.walletId).session(session);
+        if (!creatorWallet) throw new Error("Creator wallet not found");
+
+        // Calculate release amount based on tranchePercent of currentFunding
+        const releaseAmount = (project.currentFunding * milestone.tranchePercent) / 100;
+
+        if (projectWallet.balance < releaseAmount) {
+            throw new Error(`Insufficient funds in project escrow. Balance: ₹${projectWallet.balance}, Required: ₹${releaseAmount}`);
+        }
+
+        // Atomic Swap
+        projectWallet.balance -= releaseAmount;
+        creatorWallet.balance += releaseAmount;
+
+        milestone.status = "APPROVED";
+
+        await projectWallet.save({ session });
+        await creatorWallet.save({ session });
+        await project.save({ session });
+
+        // Governance Audit
+        await AuditLog.create([{
+            action: "TRANCHE_RELEASE",
+            actorId: adminUser._id,
+            resourceId: project._id,
+            resourceModel: "Project",
+            details: {
+                milestoneId,
+                amount: releaseAmount,
+                percent: milestone.tranchePercent,
+                creatorWalletId: creatorWallet._id
+            }
+        }], { session });
+
+        await session.commitTransaction();
+        return { released: releaseAmount, remaining: projectWallet.balance };
+
+    } catch (error) {
+        await session.abortTransaction();
+        throw error;
+    } finally {
+        session.endSession();
+    }
+};
 

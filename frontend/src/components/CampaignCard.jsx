@@ -1,7 +1,36 @@
-import React from 'react'
+import { useState, useEffect } from 'react'
 import { Folder } from 'lucide-react'
 
-const CampaignCard = ({ owner, title, description, target, deadline, amountCollected, image, category, state, handleClick }) => {
+const CampaignCard = ({ owner, title, description, target, deadline, rawDeadline, amountCollected, image, category, state, handleClick }) => {
+    const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+
+    const calculateTimeLeft = (deadlineDate) => {
+        const difference = +new Date(deadlineDate) - +new Date();
+        let timeLeft = {};
+
+        if (difference > 0) {
+            timeLeft = {
+                days: Math.floor(difference / (1000 * 60 * 60 * 24)),
+                hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
+                minutes: Math.floor((difference / 1000 / 60) % 60),
+                seconds: Math.floor((difference / 1000) % 60),
+            };
+        } else {
+            timeLeft = { days: 0, hours: 0, minutes: 0, seconds: 0 };
+        }
+
+        return timeLeft;
+    };
+
+    useEffect(() => {
+        if (!rawDeadline) return;
+
+        const timer = setInterval(() => {
+            setTimeLeft(calculateTimeLeft(rawDeadline));
+        }, 1000);
+
+        return () => clearInterval(timer);
+    }, [rawDeadline]);
 
     const getStateColor = (state) => {
         switch (state) {
@@ -37,8 +66,8 @@ const CampaignCard = ({ owner, title, description, target, deadline, amountColle
                         <p className="mt-[3px] font-epilogue font-normal text-[12px] leading-[18px] text-[#808191] sm:max-w-[120px] truncate">Raised of {target}</p>
                     </div>
                     <div className="flex flex-col">
-                        <h4 className="font-epilogue font-semibold text-[14px] text-[#b2b3bd] leading-[22px]">{deadline}</h4>
-                        <p className="mt-[3px] font-epilogue font-normal text-[12px] leading-[18px] text-[#808191] sm:max-w-[120px] truncate">Days left</p>
+                        <h4 className="font-epilogue font-semibold text-[14px] text-[#b2b3bd] leading-[22px]">{timeLeft.days}d {timeLeft.hours}h {timeLeft.minutes}m {timeLeft.seconds}s</h4>
+                        <p className="mt-[3px] font-epilogue font-normal text-[12px] leading-[18px] text-[#808191] sm:max-w-[120px] truncate">Time Left</p>
                     </div>
                 </div>
 

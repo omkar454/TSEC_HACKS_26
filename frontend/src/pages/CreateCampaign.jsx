@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader, Rocket, DollarSign, Image as ImageIcon, Type, AlertCircle } from 'lucide-react';
+import { Loader, Rocket, DollarSign, Image as ImageIcon, Type, AlertCircle, Shield } from 'lucide-react';
 
 import { useAuth } from '../context/AuthContext';
 import CustomButton from '../components/CustomButton';
@@ -20,7 +20,13 @@ const CreateCampaign = () => {
         target: '',
         deadline: '',
         image: '',
-        category: 'OTHER'
+        category: 'OTHER',
+        milestones: [
+            { title: 'Project Kickoff & Pre-production', description: 'Script finalized and initial logistics set.', tranchePercent: 20 },
+            { title: 'Production Completion', description: 'Raw footage/content recorded.', tranchePercent: 40 },
+            { title: 'Final Delivery', description: 'Post-production complete and content ready for publishing.', tranchePercent: 30 },
+            { title: 'Public Release', description: 'Content successfully published to platform.', tranchePercent: 10 }
+        ]
     });
 
     const categories = ["FILM", "DOCUMENTARY", "PODCAST", "MUSIC", "OTHER"];
@@ -66,13 +72,12 @@ const CreateCampaign = () => {
 
     const executeCreation = async () => {
         setIsLoading(true);
-        console.log("Form Data Submitted:", form);
 
         try {
+            if (!form.deadline) throw new Error("A specific deadline is mandatory for the Trust Engine.");
+
             // Execute Finternet Fee
             await finternetService.createPaymentIntent(50, 'INR', 'Campaign Listing Fee: ' + form.title);
-            // We assume backend doesn't track this fee specifically for now, or we could send a metadata flag.
-            // Proceed to creation.
 
             // Transform to backend expected format
             const projectData = {
@@ -80,9 +85,9 @@ const CreateCampaign = () => {
                 description: form.description,
                 fundingGoal: parseFloat(form.target),
                 category: form.category,
-                // If deadline is provided use it, otherwise set default 30 days
-                deadline: form.deadline ? new Date(form.deadline) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+                deadline: new Date(form.deadline),
                 imageUrl: form.image,
+                milestones: form.milestones,
                 // Rules: Initial simplified set
                 fundUsageRules: [
                     { category: 'Production', maxAmount: parseFloat(form.target) * 0.5, requiresReceipt: true },
@@ -175,10 +180,10 @@ const CreateCampaign = () => {
                 <div className="bg-[#1c1c24]/60 backdrop-blur-md p-8 rounded-[24px] border border-[#3a3a43] hover:border-[#4acd8d]/50 transition-colors group">
                     <div className="flex items-center gap-3 mb-6">
                         <DollarSign className="text-[#4acd8d] group-hover:scale-110 transition-transform" />
-                        <h3 className="text-white font-bold text-xl uppercase tracking-wider">Target & Governance</h3>
+                        <h3 className="text-white font-bold text-xl uppercase tracking-wider">Target & Trust Timeline</h3>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                         <FormField
                             labelName="Funding Goal (₹)"
                             placeholder="500000"
@@ -187,29 +192,50 @@ const CreateCampaign = () => {
                             handleChange={(e) => handleFormFieldChange('target', e)}
                         />
                         <FormField
-                            labelName="Deadline"
-                            placeholder="End Date"
+                            labelName="Mandatory Deadline *"
+                            placeholder="Trust Cutoff Date"
                             inputType="date"
                             value={form.deadline}
                             handleChange={(e) => handleFormFieldChange('deadline', e)}
                         />
                     </div>
 
+                    {/* Trust Engine: Milestone Tranches */}
+                    <div className="flex flex-col gap-4 bg-[#13131a] p-6 rounded-2xl border border-[#3a3a43] mb-8">
+                        <div className="flex justify-between items-center mb-2">
+                            <h4 className="text-[#4acd8d] font-black text-sm uppercase tracking-widest flex items-center gap-2">
+                                <Shield size={16} /> Fund Release Tranches
+                            </h4>
+                            <span className="text-[10px] text-[#808191] font-bold">Automatic 20/40/30/10 Split</span>
+                        </div>
+
+                        <div className="flex flex-col gap-3">
+                            {form.milestones.map((milestone, idx) => (
+                                <div key={idx} className="flex flex-col gap-1 p-3 bg-[#1c1c24] rounded-lg border border-[#3a3a43]/50">
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-white text-xs font-bold">{milestone.title}</span>
+                                        <span className="text-[#4acd8d] text-[10px] font-black">{milestone.tranchePercent}%</span>
+                                    </div>
+                                    <p className="text-[#808191] text-[10px]">{milestone.description}</p>
+                                </div>
+                            ))}
+                        </div>
+                        <p className="text-[10px] text-[#808191] italic mt-2">
+                            * Funds will be released to your wallet ONLY after Admin approval of each milestone.
+                        </p>
+                    </div>
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
                         <div className="flex flex-col gap-[10px]">
-                            <span className="font-epilogue font-medium text-[14px] leading-[22px] text-[#808191]">Min Quorum (%)</span>
-                            <div className="p-[15px] bg-[#13131a] rounded-[10px] border border-[#3a3a43] text-[#808191]">
-                                30% (Default)
+                            <span className="font-epilogue font-medium text-[14px] leading-[22px] text-[#808191]">Seed Quorum (%)</span>
+                            <div className="p-[15px] bg-[#13131a] rounded-[10px] border border-[#3a3a43] text-[#4acd8d] font-bold text-sm">
+                                30% (Mandatory)
                             </div>
                         </div>
                         <div className="flex flex-col gap-[10px]">
-                            <span className="font-epilogue font-medium text-[14px] leading-[22px] text-[#808191]">Allowed Expenses</span>
-                            <div className="flex gap-2 flex-wrap mt-2">
-                                {['Equipment', 'Logistics', 'Talent', 'Marketing'].map(cat => (
-                                    <span key={cat} className="px-3 py-1 bg-[#2c2f32] rounded-full text-xs text-white border border-[#3a3a43] hover:bg-[#3a3a43] transition-colors cursor-default">
-                                        {cat}
-                                    </span>
-                                ))}
+                            <span className="font-epilogue font-medium text-[14px] leading-[22px] text-[#808191]">Risk Policy</span>
+                            <div className="p-4 bg-[#ef4444]/5 rounded-lg border border-[#ef4444]/20 text-[10px] text-[#ef4444] font-bold uppercase leading-relaxed">
+                                Fail to reach 30% by deadline = Mandatory Atomic Refund to all contributors.
                             </div>
                         </div>
                     </div>

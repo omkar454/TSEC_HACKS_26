@@ -142,31 +142,40 @@ const AdminDashboard = () => {
                     {/* ACTIVE PROJECTS SECTION */}
                     <h4 className="text-[#808191] text-sm uppercase font-bold mt-4 mb-2">Active & Monitored Projects</h4>
                     <div className="flex flex-col gap-3">
-                        {projects.filter(p => p.status !== 'DRAFT').map(p => (
-                            <div key={p._id} className="flex justify-between items-center bg-[var(--background)] p-4 rounded-[10px]">
-                                <div className="flex items-center gap-4">
-                                    <div className={`w-2 h-2 rounded-full ${p.status === 'ACTIVE' ? 'bg-[#4acd8d]' : 'bg-[#808191]'}`}></div>
-                                    <div>
-                                        <h4 className="font-bold">{p.title}</h4>
-                                        <p className="text-xs text-[#808191]">ID: {p._id}</p>
+                        {projects.filter(p => p.status !== 'DRAFT').map(p => {
+                            const pendingMilestones = p.milestones?.filter(m => m.status === 'PENDING') || [];
+                            return (
+                                <div key={p._id} className="flex justify-between items-center bg-[var(--background)] p-4 rounded-[10px] border-l-4 border-[#8c6dfd]">
+                                    <div className="flex items-center gap-4">
+                                        <div className={`w-2 h-2 rounded-full ${p.status === 'ACTIVE' ? 'bg-[#4acd8d]' : 'bg-[#808191]'}`}></div>
+                                        <div>
+                                            <h4 className="font-bold flex items-center gap-2">
+                                                {p.title}
+                                                {pendingMilestones.length > 0 && (
+                                                    <span className="bg-[#8c6dfd] text-white text-[8px] px-2 py-0.5 rounded-full animate-pulse">
+                                                        TRANCE PENDING
+                                                    </span>
+                                                )}
+                                            </h4>
+                                            <p className="text-xs text-[#808191]">Status: {p.status} • Health: OK</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-4">
+                                        <div className="text-right">
+                                            <p className="font-mono font-bold text-xs">₹ {p.currentFunding?.toLocaleString()}</p>
+                                            <p className="text-[10px] text-[#808191]">Escrow Locked</p>
+                                        </div>
+                                        <button
+                                            onClick={() => toggleFreeze(p._id, p.isFrozen)}
+                                            className={`p-2 rounded-full transition-colors ${p.isFrozen ? 'bg-[#ef4444] text-white' : 'bg-[#3a3a43] text-[#808191] hover:text-white'}`}
+                                            title={p.isFrozen ? "Project Frozen" : "Freeze Project"}
+                                        >
+                                            {p.isFrozen ? <Lock size={16} /> : <Unlock size={16} />}
+                                        </button>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-4">
-                                    <div className="text-right">
-                                        <p className="font-mono font-bold">₹ {p.currentFunding?.toLocaleString()}</p>
-                                        <p className="text-[10px] text-[#808191]">Raised</p>
-                                    </div>
-                                    {/* Governance Actions */}
-                                    <button
-                                        onClick={() => toggleFreeze(p._id, p.isFrozen)}
-                                        className={`p-2 rounded-full transition-colors ${p.isFrozen ? 'bg-[#ef4444] text-white' : 'bg-[#3a3a43] text-[#808191] hover:text-white'}`}
-                                        title={p.isFrozen ? "Project Frozen" : "Freeze Project"}
-                                    >
-                                        {p.isFrozen ? <Lock size={16} /> : <Unlock size={16} />}
-                                    </button>
-                                </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </div>
 

@@ -5,6 +5,9 @@ import { config } from "./src/config/env.js";
 // Connect to Database
 connectDB();
 
+import { startTrustWorker } from "./src/utils/trustWorker.js";
+startTrustWorker();
+
 // Start Server
 const PORT = config.port || 3000;
 

@@ -34,12 +34,35 @@ const projectSchema = new mongoose.Schema(
             type: mongoose.Schema.Types.ObjectId,
             ref: "Wallet", // Each project has a unique wallet
         },
+        deadline: {
+            type: Date,
+            required: true,
+        },
         status: {
             type: String,
-            enum: ["DRAFT", "ACTIVE", "FUNDED", "IN_PRODUCTION", "COMPLETED", "CANCELLED"],
+            enum: ["DRAFT", "ACTIVE", "FUNDED", "CANCELLED", "FROZEN", "COMPLETED"],
             default: "DRAFT",
         },
-        // Rules for fund release (simplified for MVP)
+        // Tiered Funding Progress
+        tiers: {
+            seedMet: { type: Boolean, default: false }, // 30%
+            productionMet: { type: Boolean, default: false }, // 70%
+            successMet: { type: Boolean, default: false }, // 100%
+        },
+        // Milestone tracking for tranche releases
+        milestones: [
+            {
+                title: String,
+                description: String,
+                status: {
+                    type: String,
+                    enum: ["PENDING", "SUBMITTED", "APPROVED", "REJECTED"],
+                    default: "PENDING"
+                },
+                tranchePercent: Number, // Percentage of total funds to release upon approval
+                submissionUrl: String, // Evidence for milestone completion
+            }
+        ],
         fundUsageRules: [
             {
                 category: String, // e.g. "Production", "Marketing"

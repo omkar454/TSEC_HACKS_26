@@ -64,7 +64,8 @@ const Profile = () => {
                         id: p._id,
                         title: p.title,
                         status: p.status,
-                        raised: p.currentFunding
+                        raised: p.currentFunding,
+                        rawDeadline: p.deadline
                     })));
                 }
 

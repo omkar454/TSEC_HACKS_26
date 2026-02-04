@@ -23,6 +23,7 @@ const Home = () => {
                     title: p.title,
                     description: p.description,
                     target: p.fundingGoal,
+                    rawDeadline: p.deadline,
                     deadline: p.deadline ? new Date(p.deadline).toLocaleDateString() : "Ongoing",
                     amountCollected: p.currentFunding,
                     image: p.imageUrl || "https://images.unsplash.com/photo-1542831371-29b0f74f9713",

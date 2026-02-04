@@ -1,9 +1,10 @@
 import express from "express";
 import {
+    getMyContributions,
+    releaseTranche,
     contributeToProject,
     getProjectFundSummary,
-    getProjectContributions,
-    getMyContributions,
+    getProjectContributions
 } from "../controllers/financeController.js";
 import { protect } from "../middleware/authMiddleware.js";
 
@@ -16,5 +17,6 @@ router.get("/projects/:projectId/contributions", getProjectContributions);
 // Private Routes
 router.post("/contribute", protect, contributeToProject);
 router.get("/my-contributions", protect, getMyContributions);
+router.post("/projects/:projectId/milestones/:milestoneId/release", protect, releaseTranche);
 
 export default router;

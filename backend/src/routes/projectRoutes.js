@@ -5,6 +5,7 @@ import {
     getProjectById,
     updateProjectStatus,
     deleteProject,
+    submitMilestone,
 } from "../controllers/projectController.js";
 import { protect, creator } from "../middleware/authMiddleware.js";
 
@@ -20,5 +21,8 @@ router.route("/:id")
 
 router.route("/:id/status")
     .patch(protect, updateProjectStatus);
+
+router.route("/:id/milestones/:milestoneId/submit")
+    .patch(protect, creator, submitMilestone);
 
 export default router;

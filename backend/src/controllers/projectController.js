@@ -51,3 +51,16 @@ export const deleteProject = asyncHandler(async (req, res) => {
     await projectService.deleteProjectService(req.user, req.params.id);
     res.json({ message: "Project removed" });
 });
+// @desc    Submit milestone evidence
+// @route   PATCH /api/projects/:id/milestones/:milestoneId/submit
+// @access  Creator
+export const submitMilestone = asyncHandler(async (req, res) => {
+    const { submissionUrl } = req.body;
+    const project = await projectService.submitMilestoneService(
+        req.user,
+        req.params.id,
+        req.params.milestoneId,
+        submissionUrl
+    );
+    res.json(project);
+});

@@ -42,14 +42,23 @@ const Navbar = () => {
             <div className="sm:flex hidden flex-row justify-end gap-4">
                 {user ? (
                     <>
-                        <CustomButton
-                            btnType="button"
-                            title="Create A Campaign"
-                            styles="bg-[#8c6dfd]"
-                            handleClick={() => {
-                                navigate('/create-campaign')
-                            }}
-                        />
+                        {!user.walletId ? (
+                            <CustomButton
+                                btnType="button"
+                                title="Create Wallet"
+                                styles="bg-[#8c6dfd]"
+                                handleClick={() => navigate('/wallet')}
+                            />
+                        ) : (
+                            <CustomButton
+                                btnType="button"
+                                title="Create A Campaign"
+                                styles="bg-[#8c6dfd]"
+                                handleClick={() => {
+                                    navigate('/create-campaign')
+                                }}
+                            />
+                        )}
 
                         <div className="relative">
                             <div

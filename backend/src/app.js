@@ -11,6 +11,8 @@ import expenseRoutes from "./routes/expenseRoutes.js";
 import revenueRoutes from "./routes/revenueRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 
+import walletRoutes from "./routes/walletRoutes.js";
+
 const app = express();
 
 // Middleware
@@ -37,6 +39,7 @@ app.use("/api/finance", financeRoutes);
 app.use("/api/expenses", expenseRoutes);
 app.use("/api/revenue", revenueRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/wallet", walletRoutes);
 
 
 // Error Handling (Must be last)

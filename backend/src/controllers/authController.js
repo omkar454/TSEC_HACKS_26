@@ -29,5 +29,6 @@ export const getUserProfile = asyncHandler(async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        walletId: user.walletId,
     });
 });

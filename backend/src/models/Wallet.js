@@ -14,7 +14,7 @@ const walletSchema = new mongoose.Schema(
         },
         currency: {
             type: String,
-            default: "USD", // For MVP, we assume USD or a Stablecoin wrapper
+            default: "INR", // Default to INR
         },
         balance: {
             type: Number,

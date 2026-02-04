@@ -40,7 +40,7 @@ const Sidebar = () => {
         {
             name: 'withdraw',
             imgUrl: Wallet,
-            link: '/',
+            link: '/wallet',
         },
         {
             name: 'profile',

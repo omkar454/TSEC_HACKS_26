@@ -9,6 +9,7 @@ import Signup from './pages/Signup';
 import CampaignDetails from './pages/CampaignDetails';
 import CreatorDashboard from './pages/CreatorDashboard';
 import Profile from './pages/Profile';
+import Wallet from './pages/Wallet';
 import AdminDashboard from './pages/AdminDashboard';
 import { useAuth } from './context/AuthContext';
 
@@ -32,6 +33,7 @@ const App = () => {
           <Route path="/dashboard" element={user ? <CreatorDashboard /> : <Navigate to="/login" />} />
           <Route path="/profile" element={user ? <Profile /> : <Navigate to="/login" />} />
           <Route path="/admin" element={user && user.role === 'ADMIN' ? <AdminDashboard /> : (user ? <Navigate to="/" /> : <Navigate to="/login" />)} />
+          <Route path="/wallet" element={user ? <Wallet /> : <Navigate to="/login" />} />
           <Route path="/campaign-details/:id" element={<CampaignDetails />} />
         </Routes>
       </div>

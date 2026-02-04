@@ -40,3 +40,5 @@ export const getMyContributions = asyncHandler(async (req, res) => {
     const list = await financeService.getUserContributionsService(req.user._id);
     res.json(list);
 });
+
+

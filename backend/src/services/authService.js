@@ -30,6 +30,7 @@ export const registerUserService = async (name, email, password, role) => {
             name: user.name,
             email: user.email,
             role: user.role,
+            walletId: user.walletId,
             token: generateToken(user._id),
         };
     } else {
@@ -46,6 +47,7 @@ export const loginUserService = async (email, password) => {
             name: user.name,
             email: user.email,
             role: user.role,
+            walletId: user.walletId,
             token: generateToken(user._id),
         };
     } else {

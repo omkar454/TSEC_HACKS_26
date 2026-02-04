@@ -32,7 +32,7 @@ const Profile = () => {
                 setUser({
                     name: profile.name,
                     email: profile.email,
-                    walletAddress: profile.walletAddress || "No Wallet",
+                    walletAddress: profile.walletId || "",
                     role: profile.role,
                     bio: profile.bio || "Passionate creator making a difference."
                 });
@@ -87,6 +87,17 @@ const Profile = () => {
         setIsEditing(false);
         // Implement Update Profile API if exists
         alert("Profile update saved (Local only - Backend update API pending)");
+    }
+
+    const handleCreateWallet = async () => {
+        try {
+            const { data: wallet } = await api.post('/wallet/create');
+            setUser(prev => ({ ...prev, walletAddress: wallet._id }));
+            alert("Wallet created successfully!");
+        } catch (error) {
+            console.error("Failed to create wallet", error);
+            alert("Failed to create wallet: " + (error.response?.data?.message || error.message || "Please try again."));
+        }
     }
 
     if (isLoading) return <div className="text-white text-center mt-10">Loading Profile...</div>;
@@ -148,7 +159,16 @@ const Profile = () => {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="p-4 bg-[var(--background)] rounded-[10px] flex justify-between items-center">
                                 <span className="text-[#808191] text-sm">Wallet Connected</span>
-                                <span className="text-[#4acd8d] font-bold text-xs font-mono">{user.walletAddress.substring(0, 10)}...</span>
+                                {user.walletAddress ? (
+                                    <span className="text-[#4acd8d] font-bold text-xs font-mono">{user.walletAddress.substring(0, 10)}...</span>
+                                ) : (
+                                    <CustomButton
+                                        btnType="button"
+                                        title="Create Wallet"
+                                        styles="bg-[#8c6dfd] py-1 px-3 text-xs min-h-[30px]"
+                                        handleClick={handleCreateWallet}
+                                    />
+                                )}
                             </div>
                             <div className="p-4 bg-[var(--background)] rounded-[10px] flex justify-between items-center">
                                 <span className="text-[#808191] text-sm">2FA Security</span>

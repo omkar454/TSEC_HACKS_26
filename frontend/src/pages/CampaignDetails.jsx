@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { Loader, Folder, User, ShieldCheck, PieChart, Lock } from 'lucide-react'
+import { Loader, Folder, User, ShieldCheck, PieChart, Lock, Info } from 'lucide-react'
 
 import CustomButton from '../components/CustomButton'
 import { CAMPAIGN_STATES, EXPENSE_STATES } from '../constants'
@@ -88,8 +88,30 @@ const CampaignDetails = () => {
                 <div className="flex-1 flex-col">
                     <div className="relative">
                         <img src={campaign.image} alt="campaign" className="w-full h-[410px] object-cover rounded-[15px]" />
-                        <div className="absolute top-4 left-4 bg-[#8c6dfd] text-white px-3 py-1 rounded-md font-bold text-xs uppercase tracking-wider">
-                            {campaign.state}
+                        <div className="absolute top-4 left-4 flex items-center gap-2 group cursor-help z-10">
+                            <div className="bg-[#8c6dfd] text-white px-3 py-1 rounded-md font-bold text-xs uppercase tracking-wider shadow-lg flex items-center gap-2">
+                                {campaign.state}
+                                <Info size={14} />
+                            </div>
+
+                            {/* State Rules Tooltip */}
+                            <div className="absolute top-8 left-0 w-[280px] bg-[#1c1c24]/95 backdrop-blur-xl p-4 rounded-xl border border-white/10 shadow-2xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto transform translate-y-2">
+                                <h4 className="text-white font-bold text-sm mb-2 border-b border-white/10 pb-2">Campaign Lifecycle</h4>
+                                <div className="flex flex-col gap-2 text-xs text-[#808191]">
+                                    <div className="flex justify-between">
+                                        <span>🟢 Funding</span>
+                                        <span>Open to investment</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span>🟣 Voting</span>
+                                        <span>Funds locked, governance active</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span>🟡 Revenue</span>
+                                        <span>Project live, returns generated</span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div className="relative w-full h-[5px] bg-[#3a3a43] mt-2 rounded-full">
@@ -153,58 +175,82 @@ const CampaignDetails = () => {
                                 <h4 className="font-epilogue font-semibold text-[18px] text-[var(--text-primary)] uppercase">Community Governance</h4>
                                 <p className="text-[#808191] text-sm">Expenses must be approved by token holders. Your Vote Weight: <span className="text-[#8c6dfd] font-bold">{userOwnership}%</span></p>
 
-                                {expenses.map((expense) => (
-                                    <div key={expense.id} className="bg-[var(--secondary)] p-6 rounded-[10px] border border-[#3a3a43]">
-                                        <div className="flex justify-between items-start mb-4">
-                                            <div>
-                                                <h5 className="text-[var(--text-primary)] font-bold text-lg">{expense.title}</h5>
-                                                <p className="text-[#808191] text-sm">Receipt: <span className="text-[#4acd8d] underline cursor-pointer">{expense.receipt}</span></p>
-                                            </div>
-                                            <span className={`px-3 py-1 rounded-full text-xs font-bold ${expense.status === EXPENSE_STATES.APPROVED ? 'bg-[#4acd8d]/20 text-[#4acd8d]' : 'bg-[#eab308]/20 text-[#eab308]'}`}>
-                                                {expense.status}
-                                            </span>
-                                        </div>
-
-                                        <div className="flex justify-between items-center mb-2">
-                                            <span className="text-[var(--text-primary)] font-mono font-bold">₹ {expense.amount.toLocaleString()}</span>
-                                            <span className="text-[#808191] text-xs">Quorum: 30% Required</span>
-                                        </div>
-
-                                        {/* Voting Bars */}
-                                        <div className="flex flex-col gap-2 mb-4">
-                                            <div className="flex items-center gap-2 text-xs text-[#808191]">
-                                                <span>Approve ({expense.approvalWeight}%)</span>
-                                                <div className="flex-1 h-2 bg-[#3a3a43] rounded-full overflow-hidden">
-                                                    <div className="h-full bg-[#4acd8d]" style={{ width: `${expense.approvalWeight}%` }}></div>
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center gap-2 text-xs text-[#808191]">
-                                                <span>Reject ({expense.rejectedWeight}%)</span>
-                                                <div className="flex-1 h-2 bg-[#3a3a43] rounded-full overflow-hidden">
-                                                    <div className="h-full bg-[#ef4444]" style={{ width: `${expense.rejectedWeight}%` }}></div>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Actions (Only if Voting Open) */}
-                                        {expense.status === EXPENSE_STATES.VOTING_OPEN && parseFloat(userOwnership) > 0 && (
-                                            <div className="flex gap-4 mt-4">
-                                                <button
-                                                    onClick={() => handleVote(expense.id, 'approve')}
-                                                    className="flex-1 py-2 bg-[#4acd8d]/10 text-[#4acd8d] border border-[#4acd8d] rounded hover:bg-[#4acd8d] hover:text-white transition-all font-semibold text-sm"
-                                                >
-                                                    Approve
-                                                </button>
-                                                <button
-                                                    onClick={() => handleVote(expense.id, 'reject')}
-                                                    className="flex-1 py-2 bg-[#ef4444]/10 text-[#ef4444] border border-[#ef4444] rounded hover:bg-[#ef4444] hover:text-white transition-all font-semibold text-sm"
-                                                >
-                                                    Reject
-                                                </button>
-                                            </div>
-                                        )}
+                                {expenses.length === 0 ? (
+                                    <div className="p-8 text-center border-2 border-dashed border-[#3a3a43] rounded-[10px] text-[#808191]">
+                                        <p>No active expenses yet.</p>
+                                        <p className="text-xs mt-2">Expenses will appear here once the campaign enters the Voting phase.</p>
                                     </div>
-                                ))}
+                                ) : (
+                                    expenses.map((expense) => (
+                                        <div key={expense.id} className="bg-[var(--secondary)] p-6 rounded-[10px] border border-[#3a3a43]">
+                                            <div className="flex justify-between items-start mb-4">
+                                                <div>
+                                                    <h5 className="text-[var(--text-primary)] font-bold text-lg">{expense.title}</h5>
+                                                    <p className="text-[#808191] text-sm">Receipt: <span className="text-[#4acd8d] underline cursor-pointer">{expense.receipt}</span></p>
+                                                </div>
+                                                <span
+                                                    title={expense.status === EXPENSE_STATES.APPROVED ? "Approved by contributor vote. Funds released." : "Waiting for community consensus."}
+                                                    className={`px-3 py-1 rounded-full text-xs font-bold cursor-help ${expense.status === EXPENSE_STATES.APPROVED ? 'bg-[#4acd8d]/20 text-[#4acd8d]' : 'bg-[#eab308]/20 text-[#eab308]'}`}
+                                                >
+                                                    {expense.status}
+                                                </span>
+                                            </div>
+
+                                            <div className="flex justify-between items-center mb-2">
+                                                <span className="text-[var(--text-primary)] font-mono font-bold">₹ {expense.amount.toLocaleString()}</span>
+                                                <span className="text-[#808191] text-xs">Quorum: 30% Required</span>
+                                            </div>
+
+                                            {/* Voting Bars */}
+                                            <div className="flex flex-col gap-2 mb-4">
+                                                <div className="flex items-center gap-2 text-xs text-[#808191]">
+                                                    <span>Approve ({expense.approvalWeight}%)</span>
+                                                    <div className="flex-1 h-2 bg-[#3a3a43] rounded-full overflow-hidden">
+                                                        <div className="h-full bg-[#4acd8d]" style={{ width: `${expense.approvalWeight}%` }}></div>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-2 text-xs text-[#808191]">
+                                                    <span>Reject ({expense.rejectedWeight}%)</span>
+                                                    <div className="flex-1 h-2 bg-[#3a3a43] rounded-full overflow-hidden">
+                                                        <div className="h-full bg-[#ef4444]" style={{ width: `${expense.rejectedWeight}%` }}></div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Quorum Indicator */}
+                                                <div className="flex justify-between items-center mt-3 pt-2 border-t border-white/5">
+                                                    <p className="text-[10px] text-[#808191]">
+                                                        <span className="text-[#8c6dfd] font-bold">{expense.approvalWeight + expense.rejectedWeight}%</span> Voted
+                                                        <span className="mx-1">·</span>
+                                                        Min 30% Quorum
+                                                    </p>
+                                                    {expense.approvalWeight + expense.rejectedWeight < 30 && (
+                                                        <span className="text-[10px] text-yellow-500 flex items-center gap-1">
+                                                            ⚠️ Quorum Pending
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {/* Actions (Only if Voting Open) */}
+                                            {expense.status === EXPENSE_STATES.VOTING_OPEN && parseFloat(userOwnership) > 0 && (
+                                                <div className="flex gap-4 mt-4">
+                                                    <button
+                                                        onClick={() => handleVote(expense.id, 'approve')}
+                                                        className="flex-1 py-2 bg-[#4acd8d]/10 text-[#4acd8d] border border-[#4acd8d] rounded hover:bg-[#4acd8d] hover:text-white transition-all font-semibold text-sm"
+                                                    >
+                                                        Approve
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleVote(expense.id, 'reject')}
+                                                        className="flex-1 py-2 bg-[#ef4444]/10 text-[#ef4444] border border-[#ef4444] rounded hover:bg-[#ef4444] hover:text-white transition-all font-semibold text-sm"
+                                                    >
+                                                        Reject
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))
+                                )}
                             </div>
                         )}
 
@@ -257,7 +303,9 @@ const CampaignDetails = () => {
                         <div className="w-full bg-[var(--background)] h-2 rounded-full overflow-hidden mt-2">
                             <div className="h-full bg-[#8c6dfd]" style={{ width: `${userOwnership}%` }}></div>
                         </div>
-                        <p className="text-xs text-[#808191] mt-2">Your voting power is equal to your ownership.</p>
+                        <p className="text-xs text-[#808191] mt-2 border-t border-[#3a3a43] pt-2">
+                            * For demo purposes, revenue is manually simulated. In production, this would stream from platforms.
+                        </p>
                     </div>
 
                     <div className="flex flex-col p-6 bg-[var(--secondary)] rounded-[20px] border border-[#3a3a43]">
@@ -280,6 +328,9 @@ const CampaignDetails = () => {
                                 styles="w-full bg-[#8c6dfd] mt-4"
                                 handleClick={handleFund}
                             />
+                            <p className="text-[#808191] text-xs text-center mt-3 leading-relaxed">
+                                ℹ️ Funds are securely locked in the smart contract and can only be spent with contributor approval.
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -287,6 +338,8 @@ const CampaignDetails = () => {
         </div>
     )
 }
+
+// ... (Stats Subcomponent remains same)
 
 // Stats Subcomponent
 const CountBox = ({ title, value }) => {

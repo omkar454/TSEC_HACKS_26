@@ -54,17 +54,24 @@ const CreatorDashboard = () => {
                             <span>Date</span>
                             <span>Status</span>
                         </div>
-                        {expenses.map((expense) => (
-                            <div key={expense.id} className="grid grid-cols-4 items-center bg-[var(--background)] p-4 rounded-[10px] text-[var(--text-primary)]">
-                                <span className="font-medium">{expense.title}</span>
-                                <span>{expense.amount}</span>
-                                <span className="text-[#808191]">{expense.date}</span>
-                                <span className={`flex items-center gap-2 ${expense.status === 'Approved' ? 'text-[#4acd8d]' : 'text-[#f0ad4e]'}`}>
-                                    {expense.status === 'Approved' ? <CheckCircle size={16} /> : <Clock size={16} />}
-                                    {expense.status}
-                                </span>
+                        {expenses.length === 0 ? (
+                            <div className="py-10 text-center text-[#808191]">
+                                <p>No expenses recorded.</p>
+                                <p className="text-xs mt-1">Upload a bill to ask for community approval.</p>
                             </div>
-                        ))}
+                        ) : (
+                            expenses.map((expense) => (
+                                <div key={expense.id} className="grid grid-cols-4 items-center bg-[var(--background)] p-4 rounded-[10px] text-[var(--text-primary)]">
+                                    <span className="font-medium">{expense.title}</span>
+                                    <span>{expense.amount}</span>
+                                    <span className="text-[#808191]">{expense.date}</span>
+                                    <span className={`flex items-center gap-2 ${expense.status === 'Approved' ? 'text-[#4acd8d]' : 'text-[#f0ad4e]'}`}>
+                                        {expense.status === 'Approved' ? <CheckCircle size={16} /> : <Clock size={16} />}
+                                        {expense.status}
+                                    </span>
+                                </div>
+                            ))
+                        )}
                     </div>
                 )}
             </div>

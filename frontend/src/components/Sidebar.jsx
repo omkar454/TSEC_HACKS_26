@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { LayoutDashboard, Megaphone, MonitorPlay, Wallet, User, LogOut, Sun, Moon } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
 
 const Icon = ({ styles, name, imgUrl, isActive, disabled, handleClick }) => (
     <div className={`w-[48px] h-[48px] rounded-[10px] ${isActive && isActive === name && 'bg-[var(--background)]'} flex justify-center items-center ${!disabled && 'cursor-pointer'} ${styles}`} onClick={handleClick}>
@@ -15,6 +16,7 @@ const Icon = ({ styles, name, imgUrl, isActive, disabled, handleClick }) => (
 
 const Sidebar = () => {
     const navigate = useNavigate();
+    const { logout } = useAuth();
     const { theme, toggleTheme } = useTheme();
     const [isActive, setIsActive] = useState('dashboard');
 
@@ -54,7 +56,10 @@ const Sidebar = () => {
 
     return (
         <div className="flex justify-between items-center flex-col sticky top-5 h-[93vh]">
-            <div className="w-[52px] h-[52px] rounded-[10px] glass-panel flex justify-center items-center cursor-pointer">
+            <div
+                className="w-[52px] h-[52px] rounded-[10px] glass-panel flex justify-center items-center cursor-pointer hover:shadow-lg transition-transform hover:scale-105"
+                onClick={() => navigate('/')}
+            >
                 {/* Changed Brand Icon to 'L' for Lazarus if desired, keeping V for now as placeholder or update */}
                 <div className="w-[60%] h-[60%] bg-[#8c6dfd] rounded-full flex items-center justify-center font-bold text-white text-xl">L</div>
             </div>
@@ -67,6 +72,7 @@ const Sidebar = () => {
                             onClick={() => {
                                 if (link.name === 'logout') {
                                     setIsActive(link.name);
+                                    logout();
                                     navigate('/login');
                                     return;
                                 }

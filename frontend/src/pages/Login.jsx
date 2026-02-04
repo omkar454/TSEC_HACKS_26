@@ -1,9 +1,11 @@
 import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 import CustomButton from '../components/CustomButton'
 import FormField from '../components/FormField'
 
 const Login = () => {
+    const { login } = useAuth();
     const navigate = useNavigate();
     const [form, setForm] = useState({
         email: '',
@@ -17,7 +19,8 @@ const Login = () => {
     const handleSubmit = (e) => {
         e.preventDefault();
         console.log("Login:", form);
-        // Mock login logic
+        // Mock login 
+        login({ email: form.email, name: 'John Doe' });
         navigate('/');
     }
 

@@ -1,7 +1,8 @@
 import React from 'react'
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Search } from 'lucide-react'
 import { useAuth } from '../context/AuthContext';
+import logo from '../assets/logo.png';
 import CustomButton from './CustomButton';
 
 const Navbar = () => {
@@ -9,6 +10,12 @@ const Navbar = () => {
     const navigate = useNavigate();
     const [searchTerm, setSearchTerm] = React.useState('');
     const [isDropdownOpen, setIsDropdownOpen] = React.useState(false);
+
+    // Check if we are on the landing page
+    const location = window.location.pathname; // using window.location or useLocation hook
+    // Hooks are better
+    const { pathname } = useLocation();
+    const isLandingPage = pathname === '/';
 
     const handleSearch = () => {
         navigate(`/?search=${searchTerm}`);
@@ -21,23 +28,34 @@ const Navbar = () => {
     }
 
     return (
-        <div className="flex md:flex-row flex-col-reverse justify-between mb-[35px] gap-6">
-            <div className="lg:flex-1 flex flex-row max-w-[458px] py-2 pl-4 pr-2 h-[52px] glass-panel rounded-[100px]">
-                <input
-                    type="text"
-                    placeholder="Search for campaigns"
-                    className="flex w-full font-epilogue font-normal text-[14px] placeholder:text-[#4b5264] text-[var(--text-primary)] bg-transparent outline-none border-none"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                />
+        <div className={`flex md:flex-row flex-col-reverse justify-between mb-[35px] gap-6 ${isLandingPage ? 'items-center pt-6' : ''}`}>
+
+            {isLandingPage ? (
                 <div
-                    className="w-[72px] h-full rounded-[20px] bg-[#8c6dfd] flex justify-center items-center cursor-pointer"
-                    onClick={handleSearch}
+                    className="flex flex-row items-center cursor-pointer gap-2"
+                    onClick={() => navigate('/')}
                 >
-                    <Search color="white" className="w-[15px] h-[15px] object-contain" />
+                    <img src={logo} alt="Lazarus" className="w-[50px] h-[50px] object-contain" />
+                    <span className="text-2xl font-bold text-white tracking-wide">Lazarus</span>
                 </div>
-            </div>
+            ) : (
+                <div className="lg:flex-1 flex flex-row max-w-[458px] py-2 pl-4 pr-2 h-[52px] glass-panel rounded-[100px]">
+                    <input
+                        type="text"
+                        placeholder="Search for campaigns"
+                        className="flex w-full font-epilogue font-normal text-[14px] placeholder:text-[#4b5264] text-[var(--text-primary)] bg-transparent outline-none border-none"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                    />
+                    <div
+                        className="w-[72px] h-full rounded-[20px] bg-[#8c6dfd] flex justify-center items-center cursor-pointer"
+                        onClick={handleSearch}
+                    >
+                        <Search color="white" className="w-[15px] h-[15px] object-contain" />
+                    </div>
+                </div>
+            )}
 
             <div className="sm:flex hidden flex-row justify-end gap-4">
                 {user ? (
@@ -96,12 +114,20 @@ const Navbar = () => {
                         </div>
                     </>
                 ) : (
-                    <CustomButton
-                        btnType="button"
-                        title="Log In"
-                        styles="bg-[#1dc071]"
-                        handleClick={() => navigate('/login')}
-                    />
+                    <div className="flex gap-2">
+                        <CustomButton
+                            btnType="button"
+                            title="Log In"
+                            styles="bg-[#1dc071]"
+                            handleClick={() => navigate('/login')}
+                        />
+                        <CustomButton
+                            btnType="button"
+                            title="Sign Up"
+                            styles="bg-[#8c6dfd]"
+                            handleClick={() => navigate('/signup')}
+                        />
+                    </div>
                 )}
             </div>
         </div>

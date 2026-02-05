@@ -14,7 +14,7 @@ const DisplayCampaigns = ({ title, isLoading, campaigns }) => {
         <div>
             <h1 className="font-epilogue font-semibold text-[18px] text-[var(--text-primary)] text-left">{title} ({campaigns.length})</h1>
 
-            <div className="flex flex-wrap mt-[20px] gap-[26px]">
+            <div className="flex flex-wrap mt-[20px] gap-[26px] animate-fade-in-up">
                 {isLoading && (
                     <div className="flex justify-center items-center w-full">
                         <Loader className="w-[100px] h-[100px] object-contain animate-spin text-[#8c6dfd]" />

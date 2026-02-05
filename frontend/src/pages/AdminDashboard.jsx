@@ -160,8 +160,8 @@ const AdminDashboard = () => {
                                             <p className="text-xs text-[#808191]">Status: {p.status} • Stake: {p.creatorStake || 0}% • Health: OK</p>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-4">
-                                        <div className="text-right">
+                                    <div className="flex items-center gap-2">
+                                        <div className="text-right mr-2">
                                             <p className="font-mono font-bold text-xs">₹ {p.currentFunding?.toLocaleString()}</p>
                                             <p className="text-[10px] text-[#808191]">Escrow Locked</p>
                                         </div>
@@ -171,6 +171,23 @@ const AdminDashboard = () => {
                                             title={p.isFrozen ? "Project Frozen" : "Freeze Project"}
                                         >
                                             {p.isFrozen ? <Lock size={16} /> : <Unlock size={16} />}
+                                        </button>
+                                        <button
+                                            onClick={async () => {
+                                                if (window.confirm(`Are you sure you want to DELETE "${p.title}"? This usage is irreversible.`)) {
+                                                    try {
+                                                        await api.delete(`/projects/${p._id}`);
+                                                        alert("Project Deleted Successfully");
+                                                        fetchData();
+                                                    } catch (err) {
+                                                        alert("Delete Failed: " + (err.response?.data?.message || err.message));
+                                                    }
+                                                }
+                                            }}
+                                            className="p-2 rounded-full bg-[#ef4444]/10 text-[#ef4444] hover:bg-[#ef4444] hover:text-white transition-colors"
+                                            title="Delete Project"
+                                        >
+                                            <XCircle size={16} />
                                         </button>
                                     </div>
                                 </div>

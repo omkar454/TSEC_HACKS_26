@@ -254,12 +254,7 @@ const CreateCampaign = () => {
                     </div>
                 </div>
 
-                {/* Banner - Callout */}
-                <div className="w-full flex justify-center items-center py-8 bg-gradient-to-r from-[#8c6dfd]/10 via-[#4acd8d]/10 to-[#8c6dfd]/10 rounded-[20px] border border-[#3a3a43]/50">
-                    <h4 className="font-epilogue font-bold text-[20px] text-white text-center">
-                        <span className="text-[#4acd8d]">100% Ownership.</span> You keep what you raise.
-                    </h4>
-                </div>
+
 
                 {/* Section 2: Economics & Governance */}
                 <div className="bg-[#1c1c24]/60 backdrop-blur-md p-8 rounded-[24px] border border-[#3a3a43] hover:border-[#4acd8d]/50 transition-colors group">

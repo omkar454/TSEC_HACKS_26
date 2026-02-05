@@ -3,6 +3,7 @@ import { LayoutDashboard, Megaphone, MonitorPlay, Wallet, User, LogOut, Sun, Moo
 import { Link, useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
+import logo from '../assets/logo.png';
 
 const Icon = ({ styles, name, imgUrl, isActive, disabled, handleClick }) => (
     <div className={`w-[48px] h-[48px] rounded-[10px] ${isActive && isActive === name && 'bg-[var(--background)]'} flex justify-center items-center ${!disabled && 'cursor-pointer'} ${styles}`} onClick={handleClick}>
@@ -75,8 +76,7 @@ const Sidebar = () => {
                 className="w-[52px] h-[52px] rounded-[10px] glass-panel flex justify-center items-center cursor-pointer hover:shadow-lg transition-transform hover:scale-105"
                 onClick={() => navigate('/')}
             >
-                {/* Changed Brand Icon to 'L' for Lazarus if desired, keeping V for now as placeholder or update */}
-                <div className="w-[60%] h-[60%] bg-[#8c6dfd] rounded-full flex items-center justify-center font-bold text-white text-xl">L</div>
+                <img src={logo} alt="Logo" className="w-[85%] h-[85%] object-contain" />
             </div>
 
             <div className="flex-1 flex flex-col justify-between items-center glass-panel rounded-[20px] w-[76px] py-4 mt-12">

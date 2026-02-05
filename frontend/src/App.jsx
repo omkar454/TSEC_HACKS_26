@@ -1,5 +1,5 @@
 import React from 'react';
-import { Route, Routes, Navigate } from 'react-router-dom';
+import { Route, Routes, Navigate, useLocation } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import Navbar from './components/Navbar';
 import Home from './pages/Home';
@@ -14,21 +14,29 @@ import AdminDashboard from './pages/AdminDashboard';
 import AdminExpenses from './pages/AdminExpenses';
 import { useAuth } from './context/AuthContext';
 import FinternetMonitor from './components/FinternetMonitor';
+import LandingPage from './pages/LandingPage';
+import BackgroundEffects from './components/BackgroundEffects';
 
 const App = () => {
   const { user } = useAuth();
+  const { pathname } = useLocation();
+  const isLandingPage = pathname === '/';
 
   return (
-    <div className="relative sm:-8 p-4 bg-[var(--background)] min-h-screen flex flex-row transition-colors duration-300">
-      <div className="sm:flex hidden mr-10 relative">
-        <Sidebar />
-      </div>
+    <div className={isLandingPage ? "relative min-h-screen bg-[#13131a]" : "relative sm:-8 p-4 bg-[var(--background)] min-h-screen flex flex-row transition-colors duration-300"}>
+      <BackgroundEffects />
+      {!isLandingPage && (
+        <div className="sm:flex hidden mr-10 relative">
+          <Sidebar />
+        </div>
+      )}
 
-      <div className="flex-1 max-sm:w-full max-w-[1280px] mx-auto sm:pr-5">
+      <div className={isLandingPage ? "w-full" : "flex-1 max-sm:w-full max-w-[1280px] mx-auto sm:pr-5"}>
         <Navbar />
 
         <Routes>
-          <Route path="/" element={<Home />} />
+          <Route path="/" element={!user ? <LandingPage /> : <Navigate to="/explore" />} />
+          <Route path="/explore" element={<Home />} />
           <Route path="/create-campaign" element={user ? <CreateCampaign /> : <Navigate to="/login" />} />
           <Route path="/login" element={user ? <Navigate to="/" /> : <Login />} />
           <Route path="/signup" element={user ? <Navigate to="/" /> : <Signup />} />

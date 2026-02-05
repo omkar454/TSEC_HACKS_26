@@ -103,7 +103,7 @@ const CampaignDetails = () => {
                             .filter(c => (c.projectId?._id === id || c.projectId === id) && c.status === 'COMPLETED')
                             .reduce((acc, curr) => acc + curr.amount, 0);
 
-                        const totalFunding = project.currentFunding || 1;
+                        const totalFunding = project.fundingGoal || 1;
                         const poolShare = (myTotal / totalFunding);
                         const creatorStakeFactor = 1 - (project.creatorStake / 100);
                         const finalRevenueShare = (poolShare * creatorStakeFactor * 100).toFixed(2);

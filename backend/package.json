@@ -21,7 +21,7 @@
     "express": "^5.2.1",
     "express-async-handler": "^1.2.0",
     "express-validator": "^7.3.1",
-    "groq-sdk": "^0.37.0",
+    "groq-sdk": "^0.3.3",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.1.5",

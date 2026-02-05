@@ -9,6 +9,15 @@ const UploadBillForm = ({ projectId, onClose, onSuccess }) => {
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [projectRules, setProjectRules] = useState([]);
 
+    // Predefined categories matching backend
+    const EXPENSE_CATEGORIES = [
+        { value: 'EQUIPMENT', label: 'Equipment' },
+        { value: 'TRAVEL', label: 'Travel' },
+        { value: 'PRODUCTION', label: 'Production' },
+        { value: 'MARKETING', label: 'Marketing' },
+        { value: 'MISCELLANEOUS', label: 'Miscellaneous' },
+    ];
+
     // Form State
     const [form, setForm] = useState({
         description: '',
@@ -85,6 +94,21 @@ const UploadBillForm = ({ projectId, onClose, onSuccess }) => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        // Validate category is selected
+        if (!form.category || form.category === '') {
+            return alert('Please select a category for this expense.');
+        }
+
+        // Validate description
+        if (!form.description || form.description.trim() === '') {
+            return alert('Please enter an expense description.');
+        }
+
+        // Validate amount
+        if (!form.amount || parseFloat(form.amount) <= 0) {
+            return alert('Please enter a valid amount.');
+        }
 
         const selectedRule = projectRules.find(r => r.category === form.category);
         if (selectedRule && parseFloat(form.amount) > selectedRule.maxAmount) {
@@ -232,21 +256,19 @@ const UploadBillForm = ({ projectId, onClose, onSuccess }) => {
                     />
 
                     <div className="flex flex-col gap-2">
-                        <span className="font-epilogue font-medium text-[14px] text-[#808191]">Category</span>
+                        <span className="font-epilogue font-medium text-[14px] text-[#808191]">Category *</span>
                         <select
                             className="py-[15px] px-[25px] outline-none border-[1px] border-[#3a3a43] bg-transparent font-epilogue text-white text-[14px] rounded-[10px]"
                             value={form.category}
                             onChange={(e) => setForm({ ...form, category: e.target.value })}
+                            required
                         >
-                            {projectRules.length === 0 ? (
-                                <option value="">No categories defined</option>
-                            ) : (
-                                projectRules.map((rule) => (
-                                    <option key={rule._id} value={rule.category} className="bg-[#1c1c24]">
-                                        {rule.category} (Max: ₹{rule.maxAmount.toLocaleString()})
-                                    </option>
-                                ))
-                            )}
+                            <option value="" disabled className="bg-[#1c1c24]">Select a category...</option>
+                            {EXPENSE_CATEGORIES.map((cat) => (
+                                <option key={cat.value} value={cat.value} className="bg-[#1c1c24]">
+                                    {cat.label}
+                                </option>
+                            ))}
                         </select>
                     </div>
 

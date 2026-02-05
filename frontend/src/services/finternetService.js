@@ -72,7 +72,7 @@ export const finternetService = {
                 amount: Number(amount).toFixed(2),
                 currency,
                 type: 'CONDITIONAL',
-                settlementMethod: 'ON_RAMP_MOCK', // Inverting for payout simulation
+                settlementMethod: 'OFF_RAMP_MOCK', // Using supported mock method
                 settlementDestination: 'user_bank_account_456',
                 description: `PAYOUT: ${description}`,
             });

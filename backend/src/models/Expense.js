@@ -17,7 +17,8 @@ const expenseSchema = new mongoose.Schema(
             min: 0,
         },
         category: {
-            type: String, // Must match one of the Project's fundUsageRules
+            type: String,
+            enum: ["EQUIPMENT", "TRAVEL", "PRODUCTION", "MARKETING", "MISCELLANEOUS"],
             required: true,
         },
         description: {

@@ -12,6 +12,9 @@ import AuditLog from "../models/AuditLog.js";
 export const submitExpenseService = async (user, projectId, expenseData) => {
     const { title, amount, category, description, receiptUrl } = expenseData;
 
+    // Define valid categories that match Expense model enum
+    const VALID_CATEGORIES = ["EQUIPMENT", "TRAVEL", "PRODUCTION", "MARKETING", "MISCELLANEOUS"];
+
     const session = await mongoose.startSession();
     session.startTransaction();
 
@@ -19,10 +22,15 @@ export const submitExpenseService = async (user, projectId, expenseData) => {
         // 1. Basic Validation
         if (amount <= 0) throw new Error("Amount must be greater than 0");
 
+        // 2. Category Validation - Check against Expense model enum
+        if (!category || !VALID_CATEGORIES.includes(category)) {
+            throw new Error(`Invalid category '${category}'. Allowed categories are: ${VALID_CATEGORIES.join(', ')}`);
+        }
+
         const project = await Project.findById(projectId).session(session);
         if (!project) throw new Error("Project not found");
 
-        // 2. Auth & Status Check
+        // 3. Auth & Status Check
         if (project.creatorId.toString() !== user._id.toString()) {
             throw new Error("Only the project creator can submit expenses for this project.");
         }
@@ -30,21 +38,24 @@ export const submitExpenseService = async (user, projectId, expenseData) => {
             throw new Error(`Project is not in a spending state (Status: ${project.status})`);
         }
 
-        // 3. Rule Validation
-        const rule = project.fundUsageRules.find((r) => r.category === category);
-        if (!rule) {
-            throw new Error(`Category '${category}' is not allowed for this project. Allowed categories are: ${project.fundUsageRules.map(r => r.category).join(', ')}`);
+        // 4. Project-specific Rule Validation (if rules exist)
+        if (project.fundUsageRules && project.fundUsageRules.length > 0) {
+            const rule = project.fundUsageRules.find((r) => r.category === category);
+            
+            if (!rule) {
+                throw new Error(`Category '${category}' is not allowed for this project. Allowed categories are: ${project.fundUsageRules.map(r => r.category).join(', ')}`);
+            }
+
+            if (amount > rule.maxAmount) {
+                throw new Error(`Amount exceeds the limit for category '${category}' (Limit: ${rule.maxAmount})`);
+            }
+
+            if (rule.requiresReceipt && !receiptUrl) {
+                throw new Error(`Receipt is required for category '${category}'`);
+            }
         }
 
-        if (amount > rule.maxAmount) {
-            throw new Error(`Amount exceeds the limit for category '${category}' (Limit: ${rule.maxAmount})`);
-        }
-
-        if (rule.requiresReceipt && !receiptUrl) {
-            throw new Error(`Receipt is required for category '${category}'`);
-        }
-
-        // 4. Wallet Balance Check (Creator's Personal Wallet)
+        // 5. Wallet Balance Check (Creator's Personal Wallet)
         if (!user.walletId) throw new Error("Creator does not have a linked wallet.");
         const wallet = await Wallet.findById(user.walletId).session(session);
         if (!wallet) throw new Error("Creator wallet not found");
@@ -53,7 +64,7 @@ export const submitExpenseService = async (user, projectId, expenseData) => {
             throw new Error(`Insufficient funds in your wallet. Available: ₹${wallet.balance}`);
         }
 
-        // 5. Create Expense Record
+        // 6. Create Expense Record
         const expense = await Expense.create(
             [
                 {
@@ -70,7 +81,7 @@ export const submitExpenseService = async (user, projectId, expenseData) => {
             { session }
         );
 
-        // 6. Audit Log
+        // 7. Audit Log
         await AuditLog.create(
             [
                 {

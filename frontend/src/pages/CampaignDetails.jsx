@@ -9,6 +9,7 @@ import { CAMPAIGN_STATES, EXPENSE_STATES } from '../constants'
 import api from '../utils/api'
 import finternetService from '../services/finternetService'
 import PaymentConfirmModal from '../components/PaymentConfirmModal'
+import { formatToIST, calculateCountdownIST } from '../utils/dateUtils'
 
 const CampaignDetails = () => {
     const { user } = useAuth();
@@ -24,34 +25,18 @@ const CampaignDetails = () => {
     const [expenses, setExpenses] = useState([]);
     const [contributions, setContributions] = useState([]);
     const [revenues, setRevenues] = useState([]);
+    const [governanceRequests, setGovernanceRequests] = useState([]);
     const [userOwnership, setUserOwnership] = useState(0);
     const [showExpenseForm, setShowExpenseForm] = useState(false);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
 
-    const calculateTimeLeft = (deadlineDate) => {
-        const difference = +new Date(deadlineDate) - +new Date();
-        let timeLeft = {};
-
-        if (difference > 0) {
-            timeLeft = {
-                days: Math.floor(difference / (1000 * 60 * 60 * 24)),
-                hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
-                minutes: Math.floor((difference / 1000 / 60) % 60),
-                seconds: Math.floor((difference / 1000) % 60),
-            };
-        } else {
-            timeLeft = { days: 0, hours: 0, minutes: 0, seconds: 0 };
-        }
-
-        return timeLeft;
-    };
 
     useEffect(() => {
         if (!campaign?.rawDeadline) return;
 
         const timer = setInterval(() => {
-            setTimeLeft(calculateTimeLeft(campaign.rawDeadline));
+            setTimeLeft(calculateCountdownIST(campaign.rawDeadline));
         }, 1000);
 
         return () => clearInterval(timer);
@@ -76,7 +61,7 @@ const CampaignDetails = () => {
                     target: project.fundingGoal,
                     raised: project.currentFunding,
                     rawDeadline: project.deadline,
-                    deadline: project.deadline ? new Date(project.deadline).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : "Ongoing",
+                    deadline: project.deadline ? formatToIST(project.deadline) : "Ongoing",
                     image: project.imageUrl || "https://images.unsplash.com/photo-1542831371-29b0f74f9713",
                     owner: project.creatorId?.name || "Unknown Creator",
                     category: project.category,
@@ -129,6 +114,9 @@ const CampaignDetails = () => {
 
                 const { data: revenueList } = await api.get(`/revenue/project/${id}`);
                 setRevenues(revenueList);
+
+                const { data: govRequests } = await api.get(`/governance/project/${id}`);
+                setGovernanceRequests(govRequests);
 
             } catch (error) {
                 console.error("Error fetching campaign details:", error);
@@ -257,6 +245,20 @@ const CampaignDetails = () => {
         setIsLoading(true);
         try {
             await api.post(`/milestones/${id}/${milestoneId}/vote`, { vote });
+            alert(`Your ${vote} vote has been recorded!`);
+            setRefreshTrigger(prev => prev + 1);
+        } catch (error) {
+            alert("Voting Failed: " + (error.response?.data?.message || error.message));
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleGovernanceVote = async (requestId, vote) => {
+        if (!window.confirm(`Are you sure you want to vote ${vote}? This uses your weighted contribution power.`)) return;
+        setIsLoading(true);
+        try {
+            await api.post(`/governance/deadline-vote`, { requestId, vote });
             alert(`Your ${vote} vote has been recorded!`);
             setRefreshTrigger(prev => prev + 1);
         } catch (error) {
@@ -528,9 +530,55 @@ const CampaignDetails = () => {
                                         <CustomButton btnType="button" title="Request Extension" styles="bg-[#8c6dfd] py-2 px-4 text-xs" handleClick={() => setShowExtensionModal(true)} />
                                     )}
                                 </div>
-                                <div className="p-10 text-center border-2 border-dashed border-[#3a3a43] rounded-[15px] opacity-50">
-                                    <Info className="mx-auto mb-2 text-[#808191]" />
-                                    <p className="text-[#808191]">No active governance proposals.</p>
+                                <div className="flex flex-col gap-4">
+                                    {governanceRequests.length === 0 ? (
+                                        <div className="p-10 text-center border-2 border-dashed border-[#3a3a43] rounded-[15px] opacity-50">
+                                            <Info className="mx-auto mb-2 text-[#808191]" />
+                                            <p className="text-[#808191]">No active governance proposals.</p>
+                                        </div>
+                                    ) : (
+                                        governanceRequests.map((req) => (
+                                            <div key={req._id} className="bg-[var(--secondary)] p-6 rounded-[20px] border border-[#3a3a43] shadow-lg">
+                                                <div className="flex justify-between items-start mb-4">
+                                                    <div>
+                                                        <h5 className="text-white font-bold text-lg">Deadline Extension Request</h5>
+                                                        <p className="text-[#808191] text-xs mt-1">Status: <span className={`uppercase font-bold ${req.status === 'APPROVED' ? 'text-[#4acd8d]' : req.status === 'REJECTED' ? 'text-red-500' : 'text-[#8c6dfd]'}`}>{req.status}</span></p>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <span className="text-white font-mono font-bold">+{req.details.extensionDays} Days</span>
+                                                        <p className="text-[10px] text-[#808191] uppercase">Proposed Extension</p>
+                                                    </div>
+                                                </div>
+                                                <div className="bg-[#13131a] p-4 rounded-lg mb-6">
+                                                    <p className="text-[#808191] text-sm italic">"{req.details.reason}"</p>
+                                                </div>
+
+                                                {req.status === 'PENDING' && (
+                                                    <div className="flex flex-col gap-4">
+                                                        <div className="flex justify-between items-center text-xs font-bold uppercase tracking-widest text-[#808191]">
+                                                            <span>Consensus Progress</span>
+                                                            <span className="text-white">Voting Closes: {new Date(req.expiresAt).toLocaleDateString()}</span>
+                                                        </div>
+                                                        <div className="w-full h-2 bg-[#13131a] rounded-full overflow-hidden border border-[#3a3a43]">
+                                                            <div
+                                                                className="h-full bg-[#4acd8d] transition-all duration-1000"
+                                                                style={{ width: `${Math.min((req.votes.filter(v => v.vote === 'YES').reduce((s, v) => s + v.weight, 0)), 100)}%` }}
+                                                            />
+                                                        </div>
+                                                        {user?.role === 'CONTRIBUTOR' && !req.votes.find(v => v.voterId === user._id) && (
+                                                            <div className="flex gap-4 mt-2">
+                                                                <button onClick={() => handleGovernanceVote(req._id, 'YES')} className="flex-1 py-3 bg-[#4acd8d] text-primary font-bold rounded-xl hover:opacity-80 transition-all">APPROVE (YES)</button>
+                                                                <button onClick={() => handleGovernanceVote(req._id, 'NO')} className="flex-1 py-3 bg-red-500 text-white font-bold rounded-xl hover:opacity-80 transition-all">REJECT (NO)</button>
+                                                            </div>
+                                                        )}
+                                                        {req.votes.find(v => v.voterId === user?._id) && (
+                                                            <p className="text-center text-[#4acd8d] text-xs font-bold uppercase italic mt-2">✓ You have voted on this proposal</p>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))
+                                    )}
                                 </div>
                             </div>
                         )}
@@ -600,27 +648,34 @@ const CampaignDetails = () => {
                                 </div>
                                 {showExpenseForm && <UploadBillForm projectId={id} onClose={() => setShowExpenseForm(false)} onSuccess={() => setRefreshTrigger(prev => prev + 1)} />}
                                 <div className="flex flex-col gap-4">
-                                    {expenses.map((expense) => (
-                                        <div key={expense.id} className="bg-[var(--secondary)] p-6 rounded-[15px] border border-[#3a3a43]">
-                                            <div className="flex justify-between items-start mb-4">
-                                                <div>
-                                                    <h5 className="text-white font-bold">{expense.title}</h5>
-                                                    <p className="text-xs text-[#808191]">{expense.category} • {expense.date}</p>
-                                                </div>
-                                                <span className={`text-[10px] font-bold px-3 py-1 rounded-full uppercase ${expense.status === 'APPROVED' ? 'bg-[#4acd8d]/20 text-[#4acd8d]' : 'bg-yellow-500/10 text-yellow-500'}`}>{expense.status}</span>
-                                            </div>
-                                            <div className="flex justify-between items-center pt-4 border-t border-[#3a3a43]">
-                                                <span className="text-white font-mono font-bold">₹ {expense.amount.toLocaleString()}</span>
-                                                <a href={expense.receipt} target="_blank" rel="noreferrer" className="text-[#8c6dfd] text-xs hover:underline">Receipt</a>
-                                            </div>
-                                            {expense.status === 'PENDING' && user?.role === 'ADMIN' && (
-                                                <div className="flex gap-4 mt-6">
-                                                    <button onClick={() => handleVote(expense.id, 'approve')} className="flex-1 py-2 bg-[#4acd8d] text-primary font-bold rounded-lg text-xs">APPROVE</button>
-                                                    <button onClick={() => handleVote(expense.id, 'reject')} className="flex-1 py-2 bg-red-500 text-white font-bold rounded-lg text-xs">REJECT</button>
-                                                </div>
-                                            )}
+                                    {expenses.length === 0 ? (
+                                        <div className="p-10 text-center border-2 border-dashed border-[#3a3a43] rounded-[15px] opacity-50">
+                                            <Info className="mx-auto mb-2 text-[#808191]" />
+                                            <p className="text-[#808191]">No expenses recorded yet.</p>
                                         </div>
-                                    ))}
+                                    ) : (
+                                        expenses.map((expense) => (
+                                            <div key={expense.id} className="bg-[var(--secondary)] p-6 rounded-[15px] border border-[#3a3a43]">
+                                                <div className="flex justify-between items-start mb-4">
+                                                    <div>
+                                                        <h5 className="text-white font-bold">{expense.title}</h5>
+                                                        <p className="text-xs text-[#808191]">{expense.category} • {expense.date}</p>
+                                                    </div>
+                                                    <span className={`text-[10px] font-bold px-3 py-1 rounded-full uppercase ${expense.status === 'APPROVED' ? 'bg-[#4acd8d]/20 text-[#4acd8d]' : 'bg-yellow-500/10 text-yellow-500'}`}>{expense.status}</span>
+                                                </div>
+                                                <div className="flex justify-between items-center pt-4 border-t border-[#3a3a43]">
+                                                    <span className="text-white font-mono font-bold">₹ {expense.amount.toLocaleString()}</span>
+                                                    <a href={expense.receipt} target="_blank" rel="noreferrer" className="text-[#8c6dfd] text-xs hover:underline">Receipt</a>
+                                                </div>
+                                                {expense.status === 'PENDING' && user?.role === 'ADMIN' && (
+                                                    <div className="flex gap-4 mt-6">
+                                                        <button onClick={() => handleVote(expense.id, 'approve')} className="flex-1 py-2 bg-[#4acd8d] text-primary font-bold rounded-lg text-xs">APPROVE</button>
+                                                        <button onClick={() => handleVote(expense.id, 'reject')} className="flex-1 py-2 bg-red-500 text-white font-bold rounded-lg text-xs">REJECT</button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))
+                                    )}
                                 </div>
                             </div>
                         )}

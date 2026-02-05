@@ -16,6 +16,11 @@ const projectSchema = new mongoose.Schema(
             type: String,
             required: true,
         },
+        imageUrl: {
+            type: String,
+            required: true,
+            default: "https://images.unsplash.com/photo-1516280440614-37939bbacd81?auto=format&fit=crop&q=80&w=800",
+        },
         category: {
             type: String,
             enum: ["FILM", "DOCUMENTARY", "PODCAST", "MUSIC", "OTHER"],

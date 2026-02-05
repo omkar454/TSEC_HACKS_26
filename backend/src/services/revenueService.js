@@ -10,7 +10,7 @@ import AuditLog from "../models/AuditLog.js";
  * Submit a revenue record (Simulated Income).
  */
 export const extractRevenueService = async (user, projectId, revenueData) => {
-    const { amount, source, externalRef } = revenueData;
+    const { amount, source, externalRef, explanation, proofUrls } = revenueData;
 
     const session = await mongoose.startSession();
     session.startTransaction();
@@ -32,9 +32,11 @@ export const extractRevenueService = async (user, projectId, revenueData) => {
                     projectId: project._id,
                     amount,
                     source,
-                    status: "RECEIVED", // "RECEIVED" maps to "PENDING_DISTRIBUTION" logic
+                    explanation,
+                    proofUrls: proofUrls || [],
+                    status: "PENDING_APPROVAL",
                     distributionDate: null,
-                    externalRef // Hypothetical reference to Stripe/YouTube payout ID
+                    externalRef
                 },
             ],
             { session }
@@ -44,7 +46,7 @@ export const extractRevenueService = async (user, projectId, revenueData) => {
         await AuditLog.create(
             [
                 {
-                    action: "REVENUE_RECEIVED",
+                    action: "REVENUE_SUBMITTED",
                     actorId: user._id,
                     resourceId: revenue[0]._id,
                     resourceModel: "Revenue",
@@ -68,11 +70,8 @@ export const extractRevenueService = async (user, projectId, revenueData) => {
  * Distribute Revenue to Contributors (Atomic Settlement).
  */
 export const distributeRevenueService = async (user, revenueId) => {
-    if (user.role !== "ADMIN" && user.role !== "CREATOR") {
-        // Allowing Creator to trigger distribution for this hackathon context,
-        // but usually this is automated or Admin only.
-        // Requirement says "On revenue approval".
-        throw new Error("Not authorized to distribute revenue");
+    if (user.role !== "ADMIN") {
+        throw new Error("Only Admin can trigger or approve revenue distribution");
     }
 
     const session = await mongoose.startSession();
@@ -254,11 +253,77 @@ export const distributeRevenueService = async (user, revenueId) => {
 };
 
 /**
+ * Approve Revenue (Admin).
+ */
+export const approveRevenueService = async (user, revenueId) => {
+    if (user.role !== 'ADMIN') throw new Error("Only admin can approve revenue");
+
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+        const revenue = await Revenue.findById(revenueId).session(session);
+        if (!revenue) throw new Error("Revenue not found");
+        if (revenue.status !== 'PENDING_APPROVAL') throw new Error("Revenue is not in pending state");
+
+        revenue.status = 'APPROVED';
+        await revenue.save({ session });
+
+        await AuditLog.create([{
+            action: "REVENUE_APPROVED",
+            actorId: user._id,
+            resourceId: revenue._id,
+            resourceModel: "Revenue",
+            details: { projectId: revenue.projectId }
+        }], { session });
+
+        await session.commitTransaction();
+
+        // Automatically trigger distribution
+        return await distributeRevenueService(user, revenueId);
+    } catch (error) {
+        await session.abortTransaction();
+        throw error;
+    } finally {
+        session.endSession();
+    }
+};
+
+/**
+ * Get All Pending Revenue (Admin).
+ */
+export const getAllPendingRevenueService = async (user) => {
+    if (user.role !== 'ADMIN') throw new Error("Only admin can access pending revenue");
+    return await Revenue.find({ status: 'PENDING_APPROVAL' }).populate('projectId', 'title');
+};
+
+/**
+ * Reject Revenue (Admin).
+ */
+export const rejectRevenueService = async (user, revenueId, reason) => {
+    if (user.role !== 'ADMIN') throw new Error("Only admin can reject revenue");
+
+    const revenue = await Revenue.findById(revenueId);
+    if (!revenue) throw new Error("Revenue not found");
+
+    revenue.status = 'REJECTED';
+    await revenue.save();
+
+    await AuditLog.create({
+        action: "REVENUE_REJECTED",
+        actorId: user._id,
+        resourceId: revenue._id,
+        resourceModel: "Revenue",
+        details: { projectId: revenue.projectId, reason }
+    });
+
+    return revenue;
+};
+
+/**
  * Get Revenue History
  */
 export const getProjectRevenueService = async (user, projectId) => {
-    // Admin/Creator sees specific amounts
-    // Public/Contributor implies aggregate
     const revenues = await Revenue.find({ projectId }).sort({ createdAt: -1 });
     return revenues;
 }

@@ -1,23 +1,24 @@
 import React, { useState, useEffect } from 'react'
-import { User, Settings, Shield, Edit, Heart, Layers, ShieldCheck, BarChart, History, Info, AlertCircle, CheckCircle, FileText, Unlock, Lock, PlusSquare, CreditCard } from 'lucide-react'
+import { User, Settings, Shield, Edit, Heart, Layers, ShieldCheck, BarChart, History, Info, AlertCircle, CheckCircle, FileText, Unlock, Lock, PlusSquare, CreditCard, Folder } from 'lucide-react'
 import CustomButton from '../components/CustomButton'
 import FormField from '../components/FormField'
 import api from '../utils/api'
 import { useAuth } from '../context/AuthContext'
+import { formatToIST } from '../utils/dateUtils'
 
 const Profile = () => {
-    const { logout } = useAuth();
+    const { user: authUser, logout } = useAuth();
     const [isEditing, setIsEditing] = useState(false);
-    const [activeTab, setActiveTab] = useState('campaigns');
+    const [activeTab, setActiveTab] = useState(authUser?.role === 'CREATOR' ? 'campaigns' : (authUser?.role === 'ADMIN' ? 'audit-logs' : 'donations'));
     const [isLoading, setIsLoading] = useState(true);
 
-    // Real Data State
-    const [user, setUser] = useState({
-        name: '',
-        email: '',
+    // Real Data State (Profile specific)
+    const [userData, setUserData] = useState({
+        name: authUser?.name || '',
+        email: authUser?.email || '',
         bio: '',
         walletAddress: '',
-        role: ''
+        role: authUser?.role || ''
     });
 
     const [myCampaigns, setMyCampaigns] = useState([]);
@@ -31,7 +32,7 @@ const Profile = () => {
                 setIsLoading(true);
                 // 1. Fetch User Profile
                 const { data: profile } = await api.get('/auth/profile');
-                setUser({
+                setUserData({
                     name: profile.name,
                     email: profile.email,
                     walletAddress: profile.walletId || "",
@@ -49,7 +50,7 @@ const Profile = () => {
                         id: d._id,
                         projectTitle: d.projectId?.title || "Unknown Project",
                         amount: d.amount,
-                        date: new Date(d.createdAt).toLocaleDateString()
+                        date: formatToIST(d.createdAt)
                     })));
                 }
 
@@ -103,7 +104,7 @@ const Profile = () => {
     const handleCreateWallet = async () => {
         try {
             const { data: wallet } = await api.post('/wallet/create');
-            setUser(prev => ({ ...prev, walletAddress: wallet._id }));
+            setUserData(prev => ({ ...prev, walletAddress: wallet._id }));
             alert("Wallet created successfully!");
         } catch (error) {
             console.error("Failed to create wallet", error);
@@ -126,25 +127,25 @@ const Profile = () => {
 
                     {!isEditing ? (
                         <>
-                            <h2 className="text-[var(--text-primary)] font-bold text-xl">{user.name}</h2>
-                            <p className="text-[#808191] text-sm text-center mt-2 px-4">{user.bio}</p>
+                            <h2 className="text-[var(--text-primary)] font-bold text-xl">{userData.name}</h2>
+                            <p className="text-[#808191] text-sm text-center mt-2 px-4">{userData.bio}</p>
                         </>
                     ) : (
                         <div className="w-full flex flex-col gap-4">
                             <input
-                                value={user.name}
-                                onChange={(e) => setUser({ ...user, name: e.target.value })}
+                                value={userData.name}
+                                onChange={(e) => setUserData({ ...userData, name: e.target.value })}
                                 className="bg-transparent border border-[#3a3a43] rounded p-2 text-center text-[var(--text-primary)]"
                             />
                             <textarea
-                                value={user.bio}
-                                onChange={(e) => setUser({ ...user, bio: e.target.value })}
+                                value={userData.bio}
+                                onChange={(e) => setUserData({ ...userData, bio: e.target.value })}
                                 className="bg-transparent border border-[#3a3a43] rounded p-2 text-center text-sm text-[#808191]"
                             />
                         </div>
                     )}
 
-                    <span className="text-[#808191] text-sm mt-2 uppercase tracking-wide">{user.role}</span>
+                    <span className="text-[#808191] text-sm mt-2 uppercase tracking-wide">{userData.role}</span>
                     <div className="flex gap-2 mt-4">
                         <span className="px-3 py-1 bg-[#8c6dfd] rounded-full text-xs text-white">Verified</span>
                     </div>
@@ -170,8 +171,8 @@ const Profile = () => {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="p-4 bg-[var(--background)] rounded-[10px] flex justify-between items-center">
                                 <span className="text-[#808191] text-sm">Wallet Connected</span>
-                                {user.walletAddress ? (
-                                    <span className="text-[#4acd8d] font-bold text-xs font-mono">{user.walletAddress.substring(0, 10)}...</span>
+                                {userData.walletAddress ? (
+                                    <span className="text-[#4acd8d] font-bold text-xs font-mono">{userData.walletAddress.substring(0, 10)}...</span>
                                 ) : (
                                     <CustomButton
                                         btnType="button"
@@ -191,7 +192,7 @@ const Profile = () => {
                     {/* History Tabs */}
                     <div className="bg-[var(--secondary)] p-6 rounded-[20px] border border-[#3a3a43] min-h-[400px]">
                         <div className="flex gap-6 border-b border-[#3a3a43] pb-4 mb-6">
-                            {user.role === 'ADMIN' ? (
+                            {userData.role === 'ADMIN' ? (
                                 <>
                                     <button
                                         onClick={() => setActiveTab('audit-logs')}
@@ -210,26 +211,29 @@ const Profile = () => {
                                 </>
                             ) : (
                                 <>
-                                    <button
-                                        onClick={() => setActiveTab('campaigns')}
-                                        className={`flex items-center gap-2 font-epilogue font-semibold text-[16px] transition-colors ${activeTab === 'campaigns' ? 'text-[#8c6dfd]' : 'text-[#808191]'}`}
-                                    >
-                                        <Layers size={18} />
-                                        My Campaigns
-                                    </button>
-                                    <button
-                                        onClick={() => setActiveTab('donations')}
-                                        className={`flex items-center gap-2 font-epilogue font-semibold text-[16px] transition-colors ${activeTab === 'donations' ? 'text-[#8c6dfd]' : 'text-[#808191]'}`}
-                                    >
-                                        <Heart size={18} />
-                                        Donations
-                                    </button>
+                                    {userData.role === 'CREATOR' && (
+                                        <button
+                                            onClick={() => setActiveTab('campaigns')}
+                                            className={`flex items-center gap-2 font-epilogue font-semibold text-[16px] transition-colors ${activeTab === 'campaigns' ? 'text-[#8c6dfd]' : 'text-[#808191]'}`}
+                                        >
+                                            <Folder size={18} /> My Campaigns
+                                        </button>
+                                    )}
+
+                                    {(userData.role === 'CREATOR' || userData.role === 'CONTRIBUTOR') && (
+                                        <button
+                                            onClick={() => setActiveTab('donations')}
+                                            className={`flex items-center gap-2 font-epilogue font-semibold text-[16px] transition-colors ${activeTab === 'donations' ? 'text-[#8c6dfd]' : 'text-[#808191]'}`}
+                                        >
+                                            <Heart size={18} /> My Contributions
+                                        </button>
+                                    )}
                                 </>
                             )}
                         </div>
 
                         {/* CONTENT SECTIONS */}
-                        {activeTab === 'audit-logs' && user.role === 'ADMIN' && (
+                        {activeTab === 'audit-logs' && userData.role === 'ADMIN' && (
                             <div className="flex flex-col gap-6">
                                 <div className="flex justify-between items-end">
                                     <div className="flex flex-col gap-1">
@@ -279,8 +283,8 @@ const Profile = () => {
                                                             <tr className={`border-b border-[#3a3a43]/50 hover:bg-[#23232e]/50 transition-colors ${idx % 2 === 0 ? '' : 'bg-[#1c1c24]/30'}`}>
                                                                 <td className="p-4">
                                                                     <div className="flex flex-col">
-                                                                        <span className="text-white text-xs font-bold">{new Date(log.createdAt).toLocaleDateString()}</span>
-                                                                        <span className="text-[10px] text-[#808191] font-mono">{new Date(log.createdAt).toLocaleTimeString()}</span>
+                                                                        <span className="text-white text-xs font-bold">{formatToIST(log.createdAt)}</span>
+                                                                        <span className="text-[10px] text-[#808191] font-mono">{formatToIST(log.createdAt, true).split(',')[1] || formatToIST(log.createdAt, true)}</span>
                                                                     </div>
                                                                 </td>
                                                                 <td className="p-4">
@@ -348,7 +352,7 @@ const Profile = () => {
                             </div>
                         )}
 
-                        {activeTab === 'analytics' && user.role === 'ADMIN' && analytics && (
+                        {activeTab === 'analytics' && userData.role === 'ADMIN' && analytics && (
                             <div className="flex flex-col gap-10">
                                 {/* Dashboard Hero Stats */}
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -515,7 +519,7 @@ const Profile = () => {
                             </div>
                         )}
 
-                        {activeTab === 'campaigns' && user.role !== 'ADMIN' && (
+                        {activeTab === 'campaigns' && userData.role !== 'ADMIN' && (
                             <div className="flex flex-col gap-4">
                                 <p className="text-[#808191] text-sm">Projects you have created.</p>
                                 {myCampaigns.length === 0 ? (
@@ -534,7 +538,7 @@ const Profile = () => {
                             </div>
                         )}
 
-                        {activeTab === 'donations' && user.role !== 'ADMIN' && (
+                        {activeTab === 'donations' && userData.role !== 'ADMIN' && (
                             <div className="flex flex-col gap-4">
                                 <p className="text-[#808191] text-sm">Projects you have backed.</p>
                                 {myDonations.length === 0 ? (

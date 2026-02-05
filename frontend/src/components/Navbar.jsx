@@ -4,6 +4,7 @@ import { Search } from 'lucide-react'
 import { useAuth } from '../context/AuthContext';
 import logo from '../assets/logo.png';
 import CustomButton from './CustomButton';
+import InstallPWA from './InstallPWA';
 
 const Navbar = () => {
     const { user, logout } = useAuth();
@@ -58,6 +59,7 @@ const Navbar = () => {
             )}
 
             <div className="sm:flex hidden flex-row justify-end gap-4">
+                <InstallPWA />
                 {user ? (
                     <>
                         {!user.walletId ? (

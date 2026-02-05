@@ -1,3 +1,17 @@
+# React + Vite + PWA
+
+This project has been converted into a Progressive Web Application (PWA).
+
+## PWA Features
+- Installable on supported devices.
+- Offline capabilities via Service Worker.
+- Auto-update functionality.
+
+## Build & Preview
+To test the PWA functionality:
+1. Run `npm run build`
+2. Run `npm run preview`
+
 # React + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.

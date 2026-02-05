@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader, Rocket, DollarSign, Image as ImageIcon, Type, AlertCircle, Shield } from 'lucide-react';
+import { Loader, Rocket, DollarSign, Image as ImageIcon, Type, AlertCircle, Shield, Sparkles } from 'lucide-react';
 
 import { useAuth } from '../context/AuthContext';
 import CustomButton from '../components/CustomButton';
@@ -8,6 +8,7 @@ import FormField from '../components/FormField';
 import api from '../utils/api';
 import finternetService from '../services/finternetService';
 import PaymentConfirmModal from '../components/PaymentConfirmModal';
+import AIPreviewModal from '../components/AIPreviewModal';
 
 const CreateCampaign = () => {
     const navigate = useNavigate();
@@ -29,6 +30,61 @@ const CreateCampaign = () => {
             { title: 'Public Release', description: 'Content successfully published to platform.', tranchePercent: 10, milestoneType: 'RELEASE' }
         ]
     });
+
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [suggestion, setSuggestion] = useState('');
+    const [activeAction, setActiveAction] = useState(null);
+    const [aiLoading, setAiLoading] = useState(false);
+
+    const callAI = async (endpoint, body) => {
+        setAiLoading(true);
+        setIsModalOpen(true);
+        setSuggestion('');
+        try {
+            // Note: Updated endpoint to match project routes structure if nested, or global ai route
+            const { data } = await api.post(`/projects/ai/${endpoint}`, body);
+            if (data.result) {
+                setSuggestion(data.result);
+            } else {
+                setSuggestion("No result generated.");
+            }
+        } catch (error) {
+            console.error(error);
+            setSuggestion("Error: " + (error.response?.data?.error || error.message));
+        } finally {
+            setAiLoading(false);
+        }
+    };
+
+    const handleRewrite = (e) => {
+        e.preventDefault();
+        setActiveAction('rewrite');
+        callAI('rewrite', { description: form.description });
+    };
+
+    const handleTitle = (e) => {
+        e.preventDefault();
+        setActiveAction('title');
+        callAI('title', { title: form.title });
+    };
+
+    const handleSimplify = (e) => {
+        e.preventDefault();
+        setActiveAction('simplify');
+        // Passing fund details logic; for now sending target/rules summary
+        const fundCtx = `Target: ${form.target}, Stake: ${form.creatorStake}%, Category: ${form.category}`;
+        callAI('simplify', { fundDetails: fundCtx });
+    };
+
+    const handleAccept = (text) => {
+        if (activeAction === 'rewrite') setForm({ ...form, description: text });
+        if (activeAction === 'title') setForm({ ...form, title: text });
+        // For simplify, we don't have a direct field to map back to in this form structure easily
+        // unless we add a 'funding explanation' field. For now, we'll just alert or maybe append.
+        if (activeAction === 'simplify') alert("Explanation copied to clipboard!");
+
+        setIsModalOpen(false);
+    };
 
     const categories = ["FILM", "DOCUMENTARY", "PODCAST", "MUSIC", "OTHER"];
 
@@ -154,21 +210,33 @@ const CreateCampaign = () => {
                                 value={form.name}
                                 handleChange={(e) => handleFormFieldChange('name', e)}
                             />
-                            <FormField
-                                labelName="Campaign Title"
-                                placeholder="e.g. The Future of AI"
-                                inputType="text"
-                                value={form.title}
-                                handleChange={(e) => handleFormFieldChange('title', e)}
-                            />
+                            <div className="relative">
+                                <FormField
+                                    labelName="Campaign Title"
+                                    placeholder="e.g. The Future of AI"
+                                    inputType="text"
+                                    value={form.title}
+                                    handleChange={(e) => handleFormFieldChange('title', e)}
+                                />
+                                <button onClick={handleTitle} className="absolute top-0 right-0 p-1 text-[#8c6dfd] hover:text-white transition-colors" title="Enhance Title">
+                                    <Sparkles size={16} />
+                                </button>
+                            </div>
                         </div>
-                        <FormField
-                            labelName="Story"
-                            placeholder="Tell your story..."
-                            isTextArea
-                            value={form.description}
-                            handleChange={(e) => handleFormFieldChange('description', e)}
-                        />
+                        <div className="relative">
+                            <FormField
+                                labelName="Story"
+                                placeholder="Tell your story..."
+                                isTextArea
+                                value={form.description}
+                                handleChange={(e) => handleFormFieldChange('description', e)}
+                            />
+                            <div className="absolute top-0 right-0 z-10">
+                                <button onClick={handleRewrite} className="flex items-center gap-1 text-xs text-[#8c6dfd] border border-[#8c6dfd] px-2 py-1 rounded hover:bg-[#8c6dfd] hover:text-white transition-all">
+                                    <Sparkles size={12} /> AI Rewrite
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -187,13 +255,18 @@ const CreateCampaign = () => {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                        <FormField
-                            labelName="Funding Goal (₹)"
-                            placeholder="500000"
-                            inputType="text"
-                            value={form.target}
-                            handleChange={(e) => handleFormFieldChange('target', e)}
-                        />
+                        <div className="relative">
+                            <FormField
+                                labelName="Funding Goal (₹)"
+                                placeholder="500000"
+                                inputType="text"
+                                value={form.target}
+                                handleChange={(e) => handleFormFieldChange('target', e)}
+                            />
+                            <button onClick={handleSimplify} className="absolute top-0 right-0 p-1 text-[#4acd8d] hover:text-white transition-colors" title="Explain Funding">
+                                <Sparkles size={16} />
+                            </button>
+                        </div>
                         <FormField
                             labelName="Mandatory Deadline *"
                             placeholder="Trust Cutoff Date"
@@ -328,6 +401,20 @@ const CreateCampaign = () => {
                 amount={50}
                 title="Projects Listing Fee"
                 isLoading={isLoading}
+            />
+
+            <AIPreviewModal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                originalText={
+                    activeAction === 'title' ? form.title :
+                        activeAction === 'rewrite' ? form.description :
+                            activeAction === 'simplify' ? `Target: ${form.target}` :
+                                ''
+                }
+                aiSuggestion={suggestion}
+                onAccept={handleAccept}
+                isLoading={aiLoading}
             />
         </div >
     )

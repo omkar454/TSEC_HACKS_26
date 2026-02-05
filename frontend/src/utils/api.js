@@ -10,9 +10,13 @@ const api = axios.create({
 // Add a request interceptor to inject the token
 api.interceptors.request.use(
     (config) => {
-        const user = JSON.parse(localStorage.getItem('user'));
-        if (user && user.token) {
-            config.headers.Authorization = `Bearer ${user.token}`;
+        try {
+            const user = JSON.parse(localStorage.getItem('user'));
+            if (user && user.token) {
+                config.headers.Authorization = `Bearer ${user.token}`;
+            }
+        } catch (error) {
+            // Ignore token if parsing fails
         }
         return config;
     },

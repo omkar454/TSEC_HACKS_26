@@ -1,0 +1,160 @@
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(5px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: #1c1c24;
+    border: 1px solid #3a3a43;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 800px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    animation: fadeIn 0.3s ease-out;
+    color: white;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.modal-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid #3a3a43;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h3 {
+    margin: 0;
+    background: linear-gradient(to right, #8b5cf6, #3b82f6);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-size: 1.5rem;
+    font-weight: bold;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    font-size: 2rem;
+    color: #808191;
+    cursor: pointer;
+}
+
+.modal-body {
+    padding: 2rem;
+}
+
+.text-comparison {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+}
+
+@media (max-width: 768px) {
+    .text-comparison {
+        grid-template-columns: 1fr;
+    }
+}
+
+.original-block h4,
+.suggestion-block h4 {
+    color: #4acd8d;
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+    font-size: 0.9rem;
+    letter-spacing: 1px;
+}
+
+.original-block p {
+    color: #808191;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 1rem;
+    border-radius: 8px;
+    min-height: 150px;
+    white-space: pre-wrap;
+}
+
+.suggestion-block textarea {
+    width: 100%;
+    background: #13131a;
+    color: white;
+    border: 1px solid #3a3a43;
+    padding: 1rem;
+    border-radius: 8px;
+    resize: vertical;
+    font-family: inherit;
+    min-height: 150px;
+}
+
+.suggestion-block textarea:focus {
+    outline: none;
+    border-color: #8c6dfd;
+}
+
+.modal-actions {
+    padding: 1.5rem;
+    border-top: 1px solid #3a3a43;
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+}
+
+.btn-reject {
+    background: transparent;
+    border: 1px solid #808191;
+    color: #808191;
+    padding: 0.5rem 1.5rem;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-reject:hover {
+    border-color: white;
+    color: white;
+}
+
+.btn-accept {
+    background: #1dc071;
+    border: none;
+    color: white;
+    padding: 0.5rem 1.5rem;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-accept:hover {
+    background: #169457;
+}
+
+.loading-spinner {
+    text-align: center;
+    color: #8c6dfd;
+    font-size: 1.2rem;
+    padding: 2rem;
+}

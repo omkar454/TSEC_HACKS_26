@@ -20,10 +20,18 @@ const revenueSchema = new mongoose.Schema(
             startDate: Date,
             endDate: Date,
         },
+        explanation: {
+            type: String,
+        },
+        proofUrls: [
+            {
+                type: String,
+            },
+        ],
         status: {
             type: String,
-            enum: ["RECEIVED", "DISTRIBUTED"], // Has it been split yet?
-            default: "RECEIVED",
+            enum: ["PENDING_APPROVAL", "APPROVED", "REJECTED", "DISTRIBUTED"],
+            default: "PENDING_APPROVAL",
         },
         distributionDate: {
             type: Date,

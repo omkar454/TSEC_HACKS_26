@@ -6,16 +6,32 @@ import * as revenueService from "../services/revenueService.js";
 // @access  Creator
 export const submitRevenue = asyncHandler(async (req, res) => {
     const { projectId, ...data } = req.body;
-    const revenue = await revenueService.extractRevenueService(req.user, projectId, data);
+    const proofUrls = req.files ? req.files.map(file => file.path) : [];
+    const revenue = await revenueService.extractRevenueService(req.user, projectId, { ...data, proofUrls });
     res.status(201).json(revenue);
 });
 
-// @desc    Distribute Revenue (Settlement)
+// @desc    Approve Revenue (Settlement)
+// @route   POST /api/revenue/:id/approve
+// @access  Admin
+export const approveRevenue = asyncHandler(async (req, res) => {
+    console.log("Admin approving revenue for ID:", req.params.id);
+    const result = await revenueService.approveRevenueService(req.user, req.params.id);
+    res.json(result);
+});
+
+// @desc    Reject Revenue
+// @route   POST /api/revenue/:id/reject
+// @access  Admin
+export const rejectRevenue = asyncHandler(async (req, res) => {
+    const { reason } = req.body;
+    const result = await revenueService.rejectRevenueService(req.user, req.params.id, reason);
+    res.json(result);
+});
+
+// @desc    Distribute Revenue (Settlement) - Legacy trigger, now mostly internal
 // @route   POST /api/revenue/:id/distribute
-// @access  Admin/Creator
-// @desc    Distribute Revenue (Settlement)
-// @route   POST /api/revenue/:id/distribute
-// @access  Admin/Creator
+// @access  Admin
 export const distributeRevenue = async (req, res, next) => {
     try {
         console.log("Distributing revenue for ID:", req.params.id);
@@ -38,5 +54,13 @@ export const distributeRevenue = async (req, res, next) => {
 // @access  Public/Private
 export const getProjectRevenue = asyncHandler(async (req, res) => {
     const list = await revenueService.getProjectRevenueService(req.user, req.params.projectId);
+    res.json(list);
+});
+
+// @desc    Get All Pending Revenue
+// @route   GET /api/revenue/pending
+// @access  Admin
+export const getAllPendingRevenue = asyncHandler(async (req, res) => {
+    const list = await revenueService.getAllPendingRevenueService(req.user);
     res.json(list);
 });

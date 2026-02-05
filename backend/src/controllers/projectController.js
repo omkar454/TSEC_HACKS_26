@@ -6,7 +6,28 @@ import * as projectService from "../services/projectService.js";
 // @access  Creator
 export const createProject = asyncHandler(async (req, res) => {
     console.log("Create Project Body:", req.body);
-    const project = await projectService.createProjectService(req.user, req.body);
+    const projectData = { ...req.body };
+
+    // Parse JSON strings from FormData
+    if (typeof projectData.milestones === 'string') {
+        try {
+            projectData.milestones = JSON.parse(projectData.milestones);
+        } catch (e) {
+            console.error("Failed to parse milestones JSON:", e);
+        }
+    }
+    if (typeof projectData.fundUsageRules === 'string') {
+        try {
+            projectData.fundUsageRules = JSON.parse(projectData.fundUsageRules);
+        } catch (e) {
+            console.error("Failed to parse fundUsageRules JSON:", e);
+        }
+    }
+
+    if (req.file) {
+        projectData.imageUrl = req.file.path;
+    }
+    const project = await projectService.createProjectService(req.user, projectData);
     res.status(201).json(project);
 });
 

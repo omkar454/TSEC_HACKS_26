@@ -15,7 +15,9 @@ export const createProjectService = async (user, projectData) => {
         fundingGoal,
         creatorStake: creatorStake || 0,
         deadline: new Date(deadline),
+        imageUrl: projectData.imageUrl, // Handle the Cloudinary URL
         milestones: milestones || [], // Initialize milestones if provided
+        fundUsageRules: projectData.fundUsageRules || [], // Add fund usage rules
         creatorId: user._id,
         currentFunding: 0,
         status: "ACTIVE", // Start as ACTIVE for now, or DRAFT if requires approval

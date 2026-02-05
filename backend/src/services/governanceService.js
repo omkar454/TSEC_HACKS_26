@@ -103,3 +103,7 @@ export const voteOnGovernanceService = async (user, requestId, vote) => {
     await request.save();
     return { status: request.status, yesVotes, noVotes };
 };
+
+export const getProjectGovernanceRequestsService = async (projectId) => {
+    return await GovernanceRequest.find({ projectId }).sort({ createdAt: -1 });
+};

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import DisplayCampaigns from '../components/DisplayCampaigns'
 import api from '../utils/api'
+import { formatToIST } from '../utils/dateUtils'
 
 const Home = () => {
     const [isLoading, setIsLoading] = useState(false);
@@ -24,7 +25,7 @@ const Home = () => {
                     description: p.description,
                     target: p.fundingGoal,
                     rawDeadline: p.deadline,
-                    deadline: p.deadline ? new Date(p.deadline).toLocaleDateString() : "Ongoing",
+                    deadline: p.deadline ? formatToIST(p.deadline) : "Ongoing",
                     amountCollected: p.currentFunding,
                     image: p.imageUrl || "https://images.unsplash.com/photo-1542831371-29b0f74f9713",
                     category: p.category,

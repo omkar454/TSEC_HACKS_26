@@ -27,3 +27,11 @@ export const voteOnGovernance = asyncHandler(async (req, res) => {
     );
     res.json(result);
 });
+
+// @desc    Get all governance requests for a project
+// @route   GET /api/governance/project/:projectId
+// @access  Public
+export const getProjectGovernanceRequests = asyncHandler(async (req, res) => {
+    const requests = await governanceService.getProjectGovernanceRequestsService(req.params.projectId);
+    res.json(requests);
+});

@@ -19,7 +19,8 @@ const CreateCampaign = () => {
         description: '',
         target: '',
         deadline: '',
-        image: '',
+        image: null,
+        imagePreview: "",
         category: 'OTHER',
         creatorStake: '',
         milestones: [
@@ -62,6 +63,17 @@ const CreateCampaign = () => {
         setForm({ ...form, [fieldName]: e.target.value })
     }
 
+    const handleImageChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            setForm({
+                ...form,
+                image: file,
+                imagePreview: URL.createObjectURL(file)
+            });
+        }
+    };
+
     const [showFeeModal, setShowFeeModal] = useState(false);
 
     const handleFormSubmit = (e) => {
@@ -80,26 +92,28 @@ const CreateCampaign = () => {
             // Execute Finternet Fee
             await finternetService.createPaymentIntent(50, 'INR', 'Campaign Listing Fee: ' + form.title);
 
-            // Transform to backend expected format
-            const projectData = {
-                title: form.title,
-                description: form.description,
-                fundingGoal: parseFloat(form.target),
-                category: form.category,
-                deadline: new Date(form.deadline),
-                imageUrl: form.image,
-                creatorStake: parseFloat(form.creatorStake) || 0,
-                milestones: form.milestones,
-                // Rules: Initial simplified set
-                fundUsageRules: [
-                    { category: 'Production', maxAmount: parseFloat(form.target) * 0.5, requiresReceipt: true },
-                    { category: 'Marketing', maxAmount: parseFloat(form.target) * 0.3, requiresReceipt: false },
-                    { category: 'Ops', maxAmount: parseFloat(form.target) * 0.2, requiresReceipt: true }
-                ]
-            };
-            console.log("Sending Project Data:", projectData);
+            // Use FormData for file upload
+            const formData = new FormData();
+            formData.append('title', form.title);
+            formData.append('description', form.description);
+            formData.append('fundingGoal', parseFloat(form.target));
+            formData.append('category', form.category);
+            formData.append('deadline', new Date(form.deadline).toISOString());
+            formData.append('creatorStake', parseFloat(form.creatorStake) || 0);
+            formData.append('milestones', JSON.stringify(form.milestones));
+            formData.append('fundUsageRules', JSON.stringify([
+                { category: 'Production', maxAmount: parseFloat(form.target) * 0.5, requiresReceipt: true },
+                { category: 'Marketing', maxAmount: parseFloat(form.target) * 0.3, requiresReceipt: false },
+                { category: 'Ops', maxAmount: parseFloat(form.target) * 0.2, requiresReceipt: true }
+            ]));
 
-            const { data } = await api.post('/projects', projectData);
+            if (form.image) {
+                formData.append('image', form.image);
+            }
+
+            const { data } = await api.post('/projects', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
             setShowFeeModal(false);
             alert("Project Created Successfully!");
             navigate(`/campaign-details/${data._id}`); // Use backend ID
@@ -270,28 +284,27 @@ const CreateCampaign = () => {
                             <span className="font-epilogue font-medium text-[14px] text-[#808191] mb-[10px]">Campaign Banner URL</span>
 
                             <div className="relative w-full h-[300px] bg-[#13131a] rounded-[16px] border border-[#3a3a43] flex items-center justify-center overflow-hidden group/image transition-all hover:shadow-2xl hover:shadow-[#8c6dfd]/10">
-                                {form.image ? (
+                                {form.imagePreview ? (
                                     <>
-                                        <img src={form.image} alt="preview" className="w-full h-full object-cover opacity-90 group-hover/image:opacity-100 transition-opacity" onError={(e) => { e.target.style.display = 'none' }} />
+                                        <img src={form.imagePreview} alt="preview" className="w-full h-full object-cover opacity-90 group-hover/image:opacity-100 transition-opacity" />
                                         <div className="absolute inset-0 bg-gradient-to-t from-[#13131a] via-transparent to-transparent opacity-50" />
                                         <div className="absolute bottom-4 left-4">
-                                            <p className="bg-black/50 text-white text-xs px-2 py-1 rounded backdrop-blur-sm">Live Preview</p>
+                                            <p className="bg-black/50 text-white text-xs px-2 py-1 rounded backdrop-blur-sm">Image Selected</p>
                                         </div>
                                     </>
                                 ) : (
                                     <div className="flex flex-col items-center gap-2 text-[#4b5264]">
                                         <ImageIcon size={40} />
-                                        <span>Enter a URL to preview</span>
+                                        <span>Select a campaign banner</span>
                                     </div>
                                 )}
                             </div>
 
                             <input
-                                type="url"
-                                placeholder="https://..."
-                                value={form.image}
-                                onChange={(e) => handleFormFieldChange('image', e)}
-                                className="mt-4 py-[15px] px-[25px] outline-none border-[1px] border-[#3a3a43] bg-[#13131a] font-epilogue text-white text-[14px] placeholder:text-[#4b5264] rounded-[10px] focus:border-[#8c6dfd] transition-colors"
+                                type="file"
+                                accept="image/*"
+                                onChange={handleImageChange}
+                                className="mt-4 py-[15px] px-[25px] outline-none border-[1px] border-[#3a3a43] bg-[#13131a] font-epilogue text-white text-[14px] file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[#8c6dfd] file:text-white hover:file:bg-[#7a5bd1] rounded-[10px] focus:border-[#8c6dfd] transition-colors w-full cursor-pointer"
                             />
                         </div>
 

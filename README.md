@@ -134,7 +134,7 @@ VITE_API_BASE_URL=http://localhost:3000/api
 
 | Member | Focus | GitHub |
 | :--- | :--- | :--- |
-| **Arya Salunke** | AI Services & OCR Pipelines | [@AryanSalunke987](https://github.com/AryanSalunke987) |
+| **Aryan Salunke** | AI Services & OCR Pipelines | [@AryanSalunke987](https://github.com/AryanSalunke987) |
 | **Kushagra Mehta** | UI/UX & Interaction Design | [@kushagra819](https://github.com/kushagra819) |
 | **Advait Nair** | Backend & API Integration | [@AdvaitNair0806](https://github.com/AdvaitNair0806) |
 | **Omkar Raut** | Backend & Frontend Integration | [@omkar454](https://github.com/omkar454) |
